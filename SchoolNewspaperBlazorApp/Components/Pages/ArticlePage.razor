@@ -1,0 +1,26 @@
+﻿@page "/article/{Id:int}"
+
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+
+@if (article != null)
+{
+    <h1>@article.Title</h1>
+    <p>@article.Text</p>
+    <p>Autor: @article.Author</p>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    public Article? article;
+
+    [Inject]
+    public IArticleService articleService { get; set; } 
+
+    protected override async Task OnInitializedAsync()
+    {
+        article = await articleService.GetArticleByIdAsync(Id);
+    }
+}

@@ -1,0 +1,68 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@foreach (var article in Articles)
+{
+    @if (permissions == true)
+    {
+        <div class="card" style="width: 18rem;">
+            <img src="@GetImageUrl(article.FileId)" class="card-img-top img-fluid" alt="...">
+            <div class="card-body">
+                <h5 class="card-title">@article.Title</h5>
+                <p class="card-text">@article.Text</p>
+                <p class="card-author">@article.Author</p>
+                <button class="btn btn-danger" @onclick="() => RemoveArticleByIdAsync(article.Id)">Usun Artykuł</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <NavLink class="nav-link" href="@($"/article/{article.Id}")">
+            <div class="card" style="width: 18rem;">
+                <img src="@GetImageUrl(article.FileId)" class="card-img-top img-fluid" alt="...">
+                <div class="card-body">
+                    <h5 class="card-title">@article.Title</h5>
+                    <p class="card-text">@article.Text</p>
+                    <p class="card-author">@article.Author</p>
+                </div>
+            </div>
+        </NavLink>
+    }
+}
+
+@code {
+    [Parameter]
+    public List<Article> Articles { get; set; } = new();
+    [Parameter]
+    public bool permissions { get; set; }
+    [Inject]
+    public required IArticleService articleService { get; set; }
+    [Inject]
+    public required IFileService fileService { get; set; }
+    Dictionary<int, string> imageUrls = new Dictionary<int, string>();
+    protected override async Task OnParametersSetAsync()
+    {
+        imageUrls.Clear();
+        foreach (var article in Articles)
+        {
+            var fileName = await fileService.GetFileNameByIdAsync(article.FileId);
+            if (!string.IsNullOrWhiteSpace(fileName))
+            {
+                imageUrls[article.FileId] = $"/Images/{fileName}";
+            }
+        }
+    }
+    private string GetImageUrl(int fileId)
+    {
+        return imageUrls.TryGetValue(fileId, out var url) ? url : "";
+    }
+
+    public async Task RemoveArticleByIdAsync(int id)
+    {
+        await articleService.RemoveArticleByIdAsync(id);
+        Article? article = Articles.FirstOrDefault(a => a.Id == id);
+        if (article != null)
+        {
+            Articles.Remove(article);
+        }
+    }
+}
