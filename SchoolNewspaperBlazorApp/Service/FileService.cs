@@ -8,10 +8,12 @@ namespace SchoolNewspaperBlazorApp.Service
     public class FileService : IFileService
     {
         private readonly IFileRepository _fileRepository;
+        private readonly IPermissionService _permissionService;
         private readonly string _uploadPath;
-        public FileService(IFileRepository fileRepository, IWebHostEnvironment environment)
+        public FileService(IFileRepository fileRepository, IWebHostEnvironment environment, IPermissionService permissionService)
         {
             _fileRepository = fileRepository;
+            _permissionService = permissionService;
             _uploadPath = Path.Combine(environment.ContentRootPath, "Images");
         }
         public async Task<string> GetPreviewAsync(IBrowserFile file)
@@ -24,6 +26,11 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task<int> UploadImage(IBrowserFile file)
         {
+            bool hasPermission = await _permissionService.HasPermissionAsync(EnumPermission.AddFile);
+            if (!hasPermission)
+            {
+                throw new Exception("Brak uprawnien!");
+            }
             //Tworzenie folderu
             Directory.CreateDirectory(_uploadPath);
             //Pobieranie extension z pliku czyli np .png

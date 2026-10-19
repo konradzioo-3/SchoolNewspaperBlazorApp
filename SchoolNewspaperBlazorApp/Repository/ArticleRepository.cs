@@ -12,7 +12,26 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             _contextFactory = contextFactory;
         }
+        public async Task UpdateArticleByIdAsync(Article article)
+        {
+            await using var _context = await _contextFactory.CreateDbContextAsync();
+            var existingArticle = await _context.Articles.FirstOrDefaultAsync(a => a.Id == article.Id);
+            if(existingArticle == null)
+            {
+                return;
+            }
+            if(article.FileId != 0)
+            {
+                existingArticle.FileId = article.FileId;
+            }
+            existingArticle.FileId = article.FileId;
+            existingArticle.Title = article.Title;
+            existingArticle.Text = article.Text;
+            existingArticle.Author = article.Author;
 
+            await _context.SaveChangesAsync();
+
+        }
         public async Task AddArticleAsync(Article article)
         {
             await using var _context = await _contextFactory.CreateDbContextAsync();

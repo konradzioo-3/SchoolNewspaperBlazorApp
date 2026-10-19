@@ -12,8 +12,8 @@ using SchoolNewspaperBlazorApp.Data;
 namespace SchoolNewspaperBlazorApp.Migrations
 {
     [DbContext(typeof(NewspaperDbContext))]
-    [Migration("20261012094735_adduser")]
-    partial class adduser
+    [Migration("20261019084919_init4")]
+    partial class init4
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -74,6 +74,22 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.ToTable("Files");
                 });
 
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Permission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("PermissionName")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Permissions");
+                });
+
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>
                 {
                     b.Property<int>("Id")
@@ -104,6 +120,50 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermision", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("UserPermisions");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermision", b =>
+                {
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Permission", "Permission")
+                        .WithMany("Permissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.User", "User")
+                        .WithMany("UserPermisions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Permission", b =>
+                {
+                    b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>
+                {
+                    b.Navigation("UserPermisions");
                 });
 #pragma warning restore 612, 618
         }

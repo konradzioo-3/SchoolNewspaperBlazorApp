@@ -28,11 +28,13 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
             builder.Services.AddScoped<IAuthRepository, AuthRepository>();
             builder.Services.AddScoped<IFileRepository, FileRepository>();
+            builder.Services.AddScoped<IPermissionRepository, PermissionRepository>();
 
             //Services
             builder.Services.AddScoped<IArticleService, ArticleService>();
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IPermissionService, PermissionService>();
 
             builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
                 .AddCookie(options =>
@@ -71,31 +73,25 @@ namespace SchoolNewspaperBlazorApp
                 string email = form["Email"].ToString();
                 string password = form["Password"].ToString();
 
-                bool success = await authService.CheckIfRegisteredAsync(email, password);
+                int UserId = await authService.CheckIfRegisteredAsync(email, password);
 
-                if (!success)
+                if (UserId == 0)
                 {
                     return Results.Redirect("/");
                 }
 
                 var claims = new List<Claim>
-    {
-        new Claim(ClaimTypes.Name, email)
-    };
-
+                {
+                    new Claim(ClaimTypes.NameIdentifier, UserId.ToString()),
+                    new Claim(ClaimTypes.Name, email)
+                };
                 var identity = new ClaimsIdentity(
                     claims,
-                    CookieAuthenticationDefaults.AuthenticationScheme
-                );
-
+                    CookieAuthenticationDefaults.AuthenticationScheme);
                 var principal = new ClaimsPrincipal(identity);
-
-                await context.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    principal
-                );
-
-                return Results.Redirect("/");
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+                    principal);
+                return Results.Redirect("/adminPanel");
             });
             var imagesPath = Path.Combine(
                 builder.Environment.ContentRootPath,

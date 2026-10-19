@@ -1,0 +1,128 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+
+@inject IAuthService _authService
+@inject IPermissionService Service
+
+@foreach (var user in UsersEmail)
+{
+    <div class="article-card mb-3">
+        <div class="article-card__body">
+            <h5 class="article-card__title">@user.Value</h5>
+
+            <button class="btn btn-sm btn-outline-danger"
+                    @onclick="() => TogglePermissions(user.Key)">
+                @(ExpandedUserId == user.Key
+                    ? "Ukryj uprawnienia"
+                    : "Przejdź do panelu permisji")
+            </button>
+
+            @if (ExpandedUserId == user.Key)
+            {
+                <div class="mt-3 p-3 border rounded">
+                    <h6>Uprawnienia użytkownika: @user.Value</h6>
+
+                    @foreach (var permission in Enum.GetValues<EnumPermission>()
+                        .Where(p => p != EnumPermission.Master))
+                    {
+                        <div class="form-check mb-2" @key="permission">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="@($"permission-{user.Key}-{permission}")"
+                                   @bind="SelectedPermissions[user.Key][permission]" />
+
+                            <label class="form-check-label"
+                                   for="@($"permission-{user.Key}-{permission}")">
+                                @GetPermissionName(permission)
+                            </label>
+                        </div>
+                    }
+
+                    <button class="btn btn-primary mt-2"
+                            disabled="@Saving"
+                            @onclick="() => SavePermissionsAsync(user.Key)">
+                        @(Saving ? "Zapisywanie..." : "Zapisz uprawnienia")
+                    </button>
+
+                    @if (!string.IsNullOrEmpty(StatusMessage))
+                    {
+                        <p class="mt-2">@StatusMessage</p>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    public Dictionary<int, string> UsersEmail { get; set; } = new();
+
+    private int? ExpandedUserId { get; set; }
+
+    private bool Saving { get; set; }
+
+    private string StatusMessage { get; set; } = "";
+
+    private Dictionary<int, Dictionary<EnumPermission, bool>>
+        SelectedPermissions
+    { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        UsersEmail = await _authService.GetAllUsersAsync();
+
+        foreach (var user in UsersEmail)
+        {
+            SelectedPermissions[user.Key] =
+                Enum.GetValues<EnumPermission>()
+                    .Where(p => p != EnumPermission.Master)
+                    .ToDictionary(p => p, p => false);
+        }
+    }
+
+    private void TogglePermissions(int userId)
+    {
+        ExpandedUserId = ExpandedUserId == userId ? null : userId;
+        StatusMessage = "";
+    }
+
+    private string GetPermissionName(EnumPermission permission)
+    {
+        return permission switch
+        {
+            EnumPermission.AddArticle => "Dodawanie artykułów",
+            EnumPermission.EditArticle => "Edycja artykułów",
+            EnumPermission.DeleteArticle => "Usuwanie artykułów",
+            EnumPermission.AddUser => "Dodawanie użytkowników",
+            EnumPermission.ManageUser => "Zarządzanie użytkownikami",
+            EnumPermission.AddFile => "Dodawanie plików",
+            _ => permission.ToString()
+        };
+    }
+
+    private async Task SavePermissionsAsync(int userId)
+    {
+        Saving = true;
+        StatusMessage = "";
+
+        try
+        {
+            var permissions = SelectedPermissions[userId]
+                .Where(p => p.Value)
+                .Select(p => p.Key)
+                .ToList();
+
+            await Service.SavePermissionsAsync(permissions, userId);
+
+            StatusMessage = "Uprawnienia zapisane.";
+        }
+        catch (Exception)
+        {
+            StatusMessage = "Nie udało się zapisać uprawnień.";
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+}

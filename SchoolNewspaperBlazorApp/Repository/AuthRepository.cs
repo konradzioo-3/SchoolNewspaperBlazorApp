@@ -12,23 +12,28 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             _contextFactory = contextFactory;
         }
-
+        public async Task<Dictionary<int, string>> GetAllUsersAsync()
+        {
+            await using var _context = await _contextFactory.CreateDbContextAsync();
+            return await _context.Users
+                .ToDictionaryAsync(u => u.Id, u => u.Email);
+        }
         public async Task AddUserAsync(User user)
         {
             await using var _context = await _contextFactory.CreateDbContextAsync();
+
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
         }
-
-        public async Task<string> CheckIfRegisteredAsync(string login)
+        public async Task<User> CheckIfRegisteredAsync(string login)
         {
             await using var _context = await _contextFactory.CreateDbContextAsync();
+
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == login);
-               
             if (user != null)
             {
-                return user.Password;
+                return user;
             }
             else
             {
@@ -37,4 +42,3 @@ namespace SchoolNewspaperBlazorApp.Repository
         }
     }
 }
-    

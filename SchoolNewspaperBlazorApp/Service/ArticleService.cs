@@ -3,18 +3,43 @@ using Microsoft.IdentityModel.Tokens;
 using SchoolNewspaperBlazorApp.Data;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 using SchoolNewspaperBlazorApp.Interfaces.Service;
+using static System.Net.WebRequestMethods;
 
 namespace SchoolNewspaperBlazorApp.Service
 {
     public class ArticleService : IArticleService
     {
         private readonly IArticleRepository _articleRepository;
-        public ArticleService(IArticleRepository articleRepository)
+        private readonly IPermissionService _permissionService;
+
+        public ArticleService(IArticleRepository articleRepository, IPermissionService permissionService)
         {
             _articleRepository = articleRepository;
+
+            _permissionService = permissionService;
+        }
+
+        public async Task UpdateArticleByIdAsync(int id, string title, string text, string author, int fileId )
+        {
+            bool hasPermission = await _permissionService.HasPermissionAsync(EnumPermission.EditArticle);
+            if (!hasPermission) return;
+            var article = new Article
+            {
+                Id = id,
+                Title = title,
+                Text = text,
+                Author = author,
+                PublishDate = DateTime.Now,
+                FileId = fileId
+            };
+            await _articleRepository.UpdateArticleByIdAsync(article);
+
         }
         public async Task AddArticleAsync(string title, string text, string author,int fileId)
         {
+            bool hasPermission = await _permissionService.HasPermissionAsync(EnumPermission.AddArticle);
+            if (!hasPermission) return;
+
             var article = new Article
             {
                 Title = title,
@@ -40,7 +65,9 @@ namespace SchoolNewspaperBlazorApp.Service
         }
         public async Task RemoveArticleByIdAsync(int id)
         {
-            if(id > 0)
+            bool hasPermission = await _permissionService.HasPermissionAsync(EnumPermission.DeleteArticle);
+            if (!hasPermission) return;
+            if (id > 0)
             {
                  await _articleRepository.RemoveArticleByIdAsync(id);
             }
