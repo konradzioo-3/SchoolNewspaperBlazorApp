@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SchoolNewspaperBlazorApp.Data;
+using SchoolNewspaperBlazorApp.Data.Enums;
 using SchoolNewspaperBlazorApp.Interfaces.Repository;
 
 namespace SchoolNewspaperBlazorApp.Repository
@@ -75,11 +76,14 @@ namespace SchoolNewspaperBlazorApp.Repository
             }
             return article.Id;
         }
-        public async Task<List<Article>> GetAllArticlesAsync()
+        public async Task<List<Article>> GetLatestArticlesAsync()
         {
             await using var _context = await _contextFactory.CreateDbContextAsync();
 
-            return await _context.Articles.ToListAsync();
+            return await _context.Articles
+                .OrderByDescending(a => a.PublishDate)
+                .Take(5)
+                .ToListAsync();
 
         }
         public async Task<Article> GetArticleByIdAsync(int id)
@@ -111,6 +115,12 @@ namespace SchoolNewspaperBlazorApp.Repository
 
 
 
+        }
+        public async Task<List<Article>> GetAllArticleByTypeAsync(EnumArticleType articleType)
+        {
+            await using var _context = await _contextFactory.CreateDbContextAsync();
+
+            return await _context.Articles.Where(a => a.ArticleType == articleType).ToListAsync();
         }
     }
 }

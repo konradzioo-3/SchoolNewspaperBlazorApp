@@ -239,7 +239,7 @@
                 </div>
 
                 <div class="admin-form-wrapper">
-                    <ArticleForm IsEdit="false" />
+                    <AddArticleForm IsEdit="false" ClearView="() => SetView(0)" />
                 </div>
             </section>
         }
@@ -257,13 +257,13 @@
                 </div>
 
                 <div class="admin-form-wrapper">
-                    <AddUserForm />
+                    <AddUserForm ClearView="() => SetView(0)"  />
                 </div>
             </section>
         }
         else if(view == 4)
         {
-            <ArticleForm IsEdit="true" Article="articleToEdit" />
+            <AddArticleForm IsEdit="true" Article="articleToEdit" ClearView="() => SetView(0)" />
 
         }
         else if(view == 5)
@@ -307,7 +307,7 @@
     }
     public async Task LoadArticleAsync()
     {
-        articleList = await articleService.GetAllArticlesAsync();
+        articleList = await articleService.GetLatestArticlesAsync();
         SetView(1);
     }
     public async Task LoadArticleToEditAsync(int id)

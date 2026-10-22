@@ -6,7 +6,7 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Service
     public interface IPermissionService
     {
         Task<bool> HasPermissionAsync(EnumPermissions permission);
-        Task SavePermissionsAsync(List<EnumPermissions> permissions, int userId);
+        Task<bool> SavePermissionsAsync(List<EnumPermissions> permissions, int userId);
         Task<List<EnumPermissions>> GetUserPermissionsAsync(int userId);
         Task<Dictionary<EnumPermissions, bool>> GetAllPermissionsAsync();
         Task<int> GetUserId();

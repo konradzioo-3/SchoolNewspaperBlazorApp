@@ -4,52 +4,67 @@
 @using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @inject IAuthService _authService
-@inject IPermissionService _permissionService;
+@inject IPermissionService _permissionService
 
-@foreach (var user in Users)
-{
-    <div class="article-card mb-3">
-        <div class="article-card__body">
-            <h5 class="article-card__title">@user.Value</h5>
+<div class="permissions-container">
+    <h3 class="permissions-title">Zarządzanie uprawnieniami</h3>
 
-            <button class="btn btn-sm btn-outline-primary"
-                    @onclick="() => TogglePermissions(user.Key)">
-                @(ExpandedUserId == user.Key ? "Ukryj permisje" : "Przejdź do panelu permisji")
-            </button>
+    <div class="user-select-wrapper">
+        <label for="userSelect" class="form-label">
+            Wybierz użytkownika
+        </label>
 
-            @if (ExpandedUserId == user.Key)
+        <select id="userSelect"
+                class="form-select"
+                value="@(ExpandedUserId?.ToString() ?? "")"
+                @onchange="OnUserChanged">
+
+            <option value="">-- Wybierz użytkownika --</option>
+
+            @foreach (var user in Users)
             {
-                <div class="mt-3 p-3 border rounded">
-                    <h6>Uprawnienia użytkownika: @user.Value</h6>
-
-                    @foreach (var permission in Enum.GetValues<EnumPermissions>()
-                                .Where(p => p != EnumPermissions.Master))
-                    {
-                        <div class="form-check mb-2" @key="permission">
-                            <input class="form-check-input"
-                                   type="checkbox"
-                                   id="@($"permission-{user.Key}-{permission}")"
-                                   @bind="SelectedPermissions[permission]" />
-
-                            <label class="form-check-label"
-                                   for="@($"permission-{user.Key}-{permission}")">
-                                @GetPermissionName(permission)
-                            </label>
-                        </div>
-                    }
-
-                    <button class="btn btn-success btn-sm mt-2"
-                            @onclick="() => SavePermissions(user.Key)">
-                        Zapisz uprawnienia
-                    </button>
-                </div>
+                <option value="@user.Id">
+                    @user.Name @user.Surname
+                </option>
             }
-        </div>
+        </select>
     </div>
-}
+
+    @if (ExpandedUserId.HasValue && Users.Any(u => u.Id == ExpandedUserId.Value))
+    {
+        <div class="permissions-panel">
+            <div class="permissions-panel__header">
+                <h5>Uprawnienia użytkownika</h5>
+                <p>
+                    @Users.First(u => u.Id == ExpandedUserId.Value).Email
+                </p>
+            </div>
+
+            <div class="permissions-list">
+                @foreach (var permission in Enum.GetValues<EnumPermissions>()
+                            .Where(p => p != EnumPermissions.Master))
+                {
+                    <label class="permission-item" @key="permission">
+                        <span>@GetPermissionName(permission)</span>
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               @bind="SelectedPermissions[permission]" />
+                    </label>
+                }
+            </div>
+
+            <button class="btn btn-success save-permissions-btn"
+                    @onclick="() => SavePermissions(ExpandedUserId.Value)">
+                Zapisz uprawnienia
+            </button>
+        </div>
+    }
+</div>
+
 
 @code {
-    public Dictionary<int, string> Users { get; set; } = new();
+    public List<User> Users { get; set; } = new();
 
     private int? ExpandedUserId { get; set; }
 
@@ -96,7 +111,17 @@
             _ => permission.ToString()
         };
     }
-
+    private async Task OnUserChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int userId))
+        {
+            await TogglePermissions(userId);
+        }
+        else
+        {
+            ExpandedUserId = null;
+        }
+    }
     private async Task SavePermissions(int userId)
     {
         var selected = SelectedPermissions
@@ -104,6 +129,10 @@
             .Select(p => p.Key)
             .ToList();
 
-        await _permissionService.SavePermissionsAsync(selected, userId);
+        var succces = await _permissionService.SavePermissionsAsync(selected, userId);
+        if(succces)
+        {
+        ExpandedUserId = null;
+        }
     }
 }

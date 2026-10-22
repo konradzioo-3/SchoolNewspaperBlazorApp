@@ -1,5 +1,10 @@
 ﻿@using SchoolNewspaperBlazorApp.Interfaces.Service
 <form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
+    <label class="form-label">Imię</label>
+    <input type="text" @bind="Name" class="form-control mb-4" placeholder="Imię" required />
+
+    <label class="form-label">Nazwisko</label>
+    <input type="text" @bind="Surname" class="form-control mb-4" placeholder="Nazwisko" required />
 
     <label class="form-label">E-mail</label>
     <input type="email" @bind="Email" class="form-control mb-4" placeholder="E-Mail" required />
@@ -12,14 +17,24 @@
 
 
 @code {
+    [Parameter]
+    public EventCallback ClearView { get; set; }
     public required string Password { get; set; }
     public required string Email { get; set; }
+    public required string Name { get; set; }
+    public required string Surname { get; set; }
     [Inject]
     public IAuthService AuthService { get; set; }
 
     public async Task AddUserAsync()
     {
-        await AuthService.AddUserAsync(Password, Email);
+        var succces = await AuthService.AddUserAsync(Password, Email,Name,Surname);
+        if(succces)
+        {
+            Password = "";
+            Email = "";
+            await ClearView.InvokeAsync();
+        }
     }
 
 }

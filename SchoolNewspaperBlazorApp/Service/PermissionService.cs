@@ -33,13 +33,13 @@ namespace SchoolNewspaperBlazorApp.Service
             var principal = authState.User;
             return await _permissionRepository.HasPermissionAsync(principal, permission);
         }
-        public async Task SavePermissionsAsync(List<EnumPermissions> permissions, int userId)
+        public async Task<bool> SavePermissionsAsync(List<EnumPermissions> permissions, int userId)
         {
             bool hasPermission = await HasPermissionAsync(EnumPermissions.Master);
             if (!hasPermission)
             {
                 _notificationService.Show("Brak uprawnień!", EnumNotificationType.Failure);
-                return;
+                return false;
             }
             var succces = await _permissionRepository.SavePermissionsAsync(permissions, userId);
             if(succces)
@@ -52,6 +52,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 _notificationService.Show("Bład poczasz nadawania uprawnień! Skontaktuj się z obsługa techniczną!", EnumNotificationType.Failure);
 
             }
+            return succces;
         }
         public async Task<int> GetUserId()
         {

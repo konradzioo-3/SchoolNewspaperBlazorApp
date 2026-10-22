@@ -2169,3 +2169,102 @@ textarea.form-control {
             font-size: 16px;
         }
 }
+/*Permission Menu*/
+.permissions-container {
+    max-width: 750px;
+    margin: 30px auto;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+}
+
+.permissions-title {
+    margin-bottom: 24px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.user-select-wrapper {
+    margin-bottom: 24px;
+}
+
+    .user-select-wrapper .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .user-select-wrapper .form-select {
+        padding: 12px 14px;
+        border-radius: 10px;
+        background-color: #f9fafb;
+    }
+
+.permissions-panel {
+    padding: 22px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #f9fafb;
+}
+
+.permissions-panel__header {
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+    .permissions-panel__header h5 {
+        margin-bottom: 6px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .permissions-panel__header p {
+        margin: 0;
+        color: #6b7280;
+        overflow-wrap: anywhere;
+    }
+
+.permissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.permission-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+    .permission-item:hover {
+        background: #f3f6ff;
+        border-color: #c7d2fe;
+    }
+
+    .permission-item .form-check-input {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        cursor: pointer;
+    }
+
+.save-permissions-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 11px 16px;
+    border-radius: 9px;
+    font-weight: 600;
+}

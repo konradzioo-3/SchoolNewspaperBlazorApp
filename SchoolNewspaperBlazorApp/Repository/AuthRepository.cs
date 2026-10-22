@@ -12,11 +12,11 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             _contextFactory = contextFactory;
         }
-        public async Task<Dictionary<int, string>> GetAllUsersAsync()
+        public async Task<List<User>> GetAllUsersAsync()
         {
             await using var _context = await _contextFactory.CreateDbContextAsync();
-            return await _context.Users
-                .ToDictionaryAsync(u => u.Id, u => u.Email);
+
+            return await _context.Users.OrderByDescending(u => u.Surname).ToListAsync();
         }
         public async Task<bool> AddUserAsync(User user)
         {

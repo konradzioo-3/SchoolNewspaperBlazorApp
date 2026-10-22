@@ -16,25 +16,34 @@
     }
 
     <label class="form-label">Zdjęcie</label>
-    <InputFile OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
+    <InputFile  OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
 
     <form @onsubmit="SubmitForm" @onsubmit:preventDefault>
         <label class="form-label">Tytuł</label>
         <input @bind="title" class="form-control mb-3" placeholder="Wpisz tytuł..." required />
+        <InputSelect  @bind-Value="selectedType" required>
+                <option value="">Wybierz kategorię</option>
 
+                @foreach (var type in Enum.GetValues<EnumArticleType>())
+                {
+                    <option value="@type">@GetTypeName(type)</option>
+                }
+            </InputSelect>
         <label class="form-label">Treść</label>
         <textarea @bind="text" class="form-control mb-3" rows="6" placeholder="Treść artykułu..." required></textarea>
 
         <label class="form-label">Autor</label>
         <input @bind="author" class="form-control mb-4" placeholder="Imię i nazwisko" required />
         <label class="form-label">Zdjęcia do galerii</label>
-        <InputFile onchange="ChooseGalleryPhotos" accept="image/*" multiple class="form-control mb3"/>
+        <InputFile onchange="ChooseGalleryPhotos" accept="image/*" multiple class="form-control mb3" />
         <button type="submit" class="btn btn-primary w-100">@(IsEdit ? "Zatwierdź edycje" : "Dodaj artykuł")</button>
     </form>
 </div>
 
 
 @code {
+    [Parameter]
+    public EventCallback ClearView { get; set; }
     [Parameter]
     public bool IsEdit { get; set; }
     [Parameter]
@@ -43,6 +52,7 @@
     private string text = "";
     private string author = "";
     private string? previewImage;
+    private EnumArticleType? selectedType;
     IBrowserFile? file;
     private List<IBrowserFile> galleryFiles = new();
     protected override void OnParametersSet()
@@ -53,6 +63,20 @@
             text = Article.Text;
             author = Article.Author;
         }
+    }
+    private string GetTypeName(EnumArticleType type)
+    {
+        return type switch
+        {
+            EnumArticleType.Announcements => "Ogłoszenia",
+            EnumArticleType.Substitute => "Zastępstwa",
+            EnumArticleType.Events => "Wydarzenia",
+            EnumArticleType.Competitions => "Konkursy",
+            EnumArticleType.Admisions => "Rekrutacja",
+            EnumArticleType.Exams => "Egzaminy",
+            EnumArticleType.StudentsCouncil => "Samorząd",
+            _ => type.ToString()
+        };
     }
     public void ChooseGalleryPhotos(InputFileChangeEventArgs e)
     {
@@ -73,14 +97,26 @@
         if (IsEdit && Article != null)
         {
 
-            await articleService.UpdateArticleByIdAsync(Article.Id,title, text, author,mainImageId);
+            await articleService.UpdateArticleByIdAsync(Article.Id, title, text, author, mainImageId, selectedType);
         }
         else
         {
-            var articleId = await articleService.AddArticleAsync(title, text, author, mainImageId);
+            var articleId = await articleService.AddArticleAsync(title, text, author, mainImageId, selectedType);
             foreach(var image in galleryFiles)
             {
                 await fileService.UploadImage(image, articleId);
+            }
+            if(articleId != 0)
+            {
+                title = "";
+                text = "";
+                author = "";
+                previewImage = "";
+                selectedType = null;
+                file = null;
+                galleryFiles.Clear();
+                await ClearView.InvokeAsync();
+
             }
         }
     }

@@ -23,28 +23,28 @@ namespace SchoolNewspaperBlazorApp.Service
             _permissionService = permissionService;
             _notificationService = notificationService;
         }
-        public async Task<Dictionary<int, string>> GetAllUsersAsync()
+        public async Task<List<User>> GetAllUsersAsync()
         {
             return await _authRepository.GetAllUsersAsync();
         }
-        public async Task AddUserAsync(string password, string email)
+        public async Task<bool> AddUserAsync(string password, string email,string name,string surname)
         {
             if(string.IsNullOrWhiteSpace(password))
             {
                 _notificationService.Show("Hasło jest puste!", EnumNotificationType.Failure);
-                return;
+                return false;
             }
             if(!EmailRegex.IsMatch(email))
             {
                 _notificationService.Show("E-mail jest niepoprawny!", EnumNotificationType.Failure);
-                return;
+                return false;
 
             }
             bool hasPermission = await _permissionService.HasPermissionAsync(EnumPermissions.AddUser);
             if (!hasPermission)
             {
                 _notificationService.Show("Brak uprawnień!", EnumNotificationType.Failure);
-                return;
+                return false;
             }
 
 
@@ -54,7 +54,9 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 Password = passwordHash,
                 Email = email,
-                RegisterDate = DateTime.Now
+                RegisterDate = DateTime.Now,
+                Name = name,
+                Surname = surname
             };
             var succes = await _authRepository.AddUserAsync(auth);
             if(succes)
@@ -65,6 +67,7 @@ namespace SchoolNewspaperBlazorApp.Service
             {
                 _notificationService.Show("Dodawane użytkownika nie powiodło się lub email juz istnieje!", EnumNotificationType.Error);
             }
+            return succes;
         }
 
         public async Task<int> CheckIfRegisteredAsync(string login, string password)

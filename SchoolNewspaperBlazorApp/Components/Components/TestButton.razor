@@ -8,6 +8,8 @@
     {
         string password = "admin123";
         string email = "admin123@admin.pl";
-        await authService.AddUserAsync(password,email);
+        string name = "test";
+        string surname = "test";
+        await authService.AddUserAsync(password,email,name,surname);
     }
 }

@@ -1,24 +1,21 @@
 ﻿@page "/"
 @using SchoolNewspaperBlazorApp.Components.Components
 @using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
 @using SchoolNewspaperBlazorApp.Interfaces.Service
 @inject IArticleService articleService;
 
 <PageTitle>Gazetka ETI</PageTitle>
 
 <section class="home-hero">
-    <span class="home-hero__eyebrow">Szkolny portal informacyjny</span>
-
-    <h1>Wszystko, co dzieje się w naszej szkole.</h1>
-
-    <p>
-        Aktualności, wydarzenia i ogłoszenia z życia technikum – w jednym miejscu,
-        tworzone przez uczniów.
-    </p>
-
-    <a href="#aktualnosci" class="home-hero__button">
-        Czytaj aktualności <span aria-hidden="true">→</span>
-    </a>
+    <button @onclick="() => articleService.GetLatestArticlesAsync()">Najnowsze</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.Announcements)">Ogłoszenia</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.Substitute)">Zastępstwa</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.Events)">Wydarzenia</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.Competitions)">Konkursy</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.Admisions)">Rekrutacja</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.Exams)">Egzaminy</button>
+    <button @onclick="() => GetCategoryArticle(EnumArticleType.StudentsCouncil)">Samorząd</button>
 </section>
 
 <div class="section-heading" id="aktualnosci">
@@ -36,6 +33,11 @@
     public List<Article> articles = new List<Article>();
     protected override async Task OnInitializedAsync()
     {
-        articles = await articleService.GetAllArticlesAsync();
+        articles = await articleService.GetLatestArticlesAsync();
+    }
+    public async Task GetCategoryArticle(EnumArticleType type)
+    {
+        articles.Clear();
+        articles = await articleService.GetAllArticleByTypeAsync(type);
     }
 }
