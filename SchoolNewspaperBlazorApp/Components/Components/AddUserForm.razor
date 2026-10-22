@@ -1,0 +1,25 @@
+﻿@using SchoolNewspaperBlazorApp.Interfaces.Service
+<form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
+
+    <label class="form-label">E-mail</label>
+    <input type="email" @bind="Email" class="form-control mb-4" placeholder="E-Mail" required />
+
+    <label class="form-label">Hasło</label>
+    <input type="password" @bind="Password" class="form-control mb-4" placeholder="Hasło" required />
+
+    <button type="submit" class="btn btn-primary w-100">Dodaj</button>
+</form>
+
+
+@code {
+    public required string Password { get; set; }
+    public required string Email { get; set; }
+    [Inject]
+    public IAuthService AuthService { get; set; }
+
+    public async Task AddUserAsync()
+    {
+        await AuthService.AddUserAsync(Password, Email);
+    }
+
+}

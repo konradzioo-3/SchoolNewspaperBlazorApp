@@ -1,0 +1,109 @@
+﻿@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IAuthService _authService
+@inject IPermissionService _permissionService;
+
+@foreach (var user in Users)
+{
+    <div class="article-card mb-3">
+        <div class="article-card__body">
+            <h5 class="article-card__title">@user.Value</h5>
+
+            <button class="btn btn-sm btn-outline-primary"
+                    @onclick="() => TogglePermissions(user.Key)">
+                @(ExpandedUserId == user.Key ? "Ukryj permisje" : "Przejdź do panelu permisji")
+            </button>
+
+            @if (ExpandedUserId == user.Key)
+            {
+                <div class="mt-3 p-3 border rounded">
+                    <h6>Uprawnienia użytkownika: @user.Value</h6>
+
+                    @foreach (var permission in Enum.GetValues<EnumPermissions>()
+                                .Where(p => p != EnumPermissions.Master))
+                    {
+                        <div class="form-check mb-2" @key="permission">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="@($"permission-{user.Key}-{permission}")"
+                                   @bind="SelectedPermissions[permission]" />
+
+                            <label class="form-check-label"
+                                   for="@($"permission-{user.Key}-{permission}")">
+                                @GetPermissionName(permission)
+                            </label>
+                        </div>
+                    }
+
+                    <button class="btn btn-success btn-sm mt-2"
+                            @onclick="() => SavePermissions(user.Key)">
+                        Zapisz uprawnienia
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    public Dictionary<int, string> Users { get; set; } = new();
+
+    private int? ExpandedUserId { get; set; }
+
+    private Dictionary<EnumPermissions, bool> SelectedPermissions { get; set; }
+    = Enum.GetValues<EnumPermissions>()
+    .Where(p => p != EnumPermissions.Master)
+    .ToDictionary(p => p, p => false);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Users = await _authService.GetAllUsersAsync();
+    }
+
+    private async Task TogglePermissions(int userId)
+    {
+        if (ExpandedUserId == userId)
+        {
+            ExpandedUserId = null;
+            return;
+        }
+
+        var userPermissions = await _permissionService.GetUserPermissionsAsync(userId);
+
+        SelectedPermissions = Enum.GetValues<EnumPermissions>()
+            .Where(p => p != EnumPermissions.Master)
+            .ToDictionary(
+                permission => permission,
+                permission => userPermissions.Contains(permission)
+            );
+        ExpandedUserId = userId;
+
+    }
+
+    private string GetPermissionName(EnumPermissions permission)
+    {
+        return permission switch
+        {
+            EnumPermissions.AddArticle => "Dodawanie artykułów",
+            EnumPermissions.EditArticle => "Edytowanie artykułów",
+            EnumPermissions.DeleteArticle => "Usuwanie artykułów",
+            EnumPermissions.AddUser => "Dodawanie użytkowników",
+            EnumPermissions.ManageUser => "Zarządzanie użytkownikami",
+            EnumPermissions.AddFile => "Dodawanie plików",
+            _ => permission.ToString()
+        };
+    }
+
+    private async Task SavePermissions(int userId)
+    {
+        var selected = SelectedPermissions
+            .Where(p => p.Value)
+            .Select(p => p.Key)
+            .ToList();
+
+        await _permissionService.SavePermissionsAsync(selected, userId);
+    }
+}

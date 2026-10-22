@@ -1,0 +1,13 @@
+﻿@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IAuthService authService
+<button class="btn btn-dark btn-sm" @onclick="AddUser">ADD USER (TECHNICZNE)</button>
+
+@code {
+
+    public async Task AddUser()
+    {
+        string password = "admin123";
+        string email = "admin123@admin.pl";
+        await authService.AddUserAsync(password,email);
+    }
+}

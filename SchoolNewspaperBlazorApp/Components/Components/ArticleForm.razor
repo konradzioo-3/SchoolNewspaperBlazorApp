@@ -1,0 +1,93 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IArticleService articleService
+@inject IFileService fileService
+@inject INotificationService notificationService
+
+<div class="add-article-form">
+    <h1 class="add-article-form__title">Dodaj artykuł</h1>
+
+    @if (previewImage != null)
+    {
+        <div class="image-preview-wrap">
+            <img src="@previewImage" alt="zdjęcie" class="image-preview" />
+        </div>
+    }
+
+    <label class="form-label">Zdjęcie</label>
+    <InputFile OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
+
+    <form @onsubmit="SubmitForm" @onsubmit:preventDefault>
+        <label class="form-label">Tytuł</label>
+        <input @bind="title" class="form-control mb-3" placeholder="Wpisz tytuł..." required />
+
+        <label class="form-label">Treść</label>
+        <textarea @bind="text" class="form-control mb-3" rows="6" placeholder="Treść artykułu..." required></textarea>
+
+        <label class="form-label">Autor</label>
+        <input @bind="author" class="form-control mb-4" placeholder="Imię i nazwisko" required />
+        <label class="form-label">Zdjęcia do galerii</label>
+        <InputFile onchange="ChooseGalleryPhotos" accept="image/*" multiple class="form-control mb3"/>
+        <button type="submit" class="btn btn-primary w-100">@(IsEdit ? "Zatwierdź edycje" : "Dodaj artykuł")</button>
+    </form>
+</div>
+
+
+@code {
+    [Parameter]
+    public bool IsEdit { get; set; }
+    [Parameter]
+    public Article? Article { get; set;  }
+    private string title = "";
+    private string text = "";
+    private string author = "";
+    private string? previewImage;
+    IBrowserFile? file;
+    private List<IBrowserFile> galleryFiles = new();
+    protected override void OnParametersSet()
+    {
+        if(IsEdit && Article != null)
+        {
+            title = Article.Title;
+            text = Article.Text;
+            author = Article.Author;
+        }
+    }
+    public void ChooseGalleryPhotos(InputFileChangeEventArgs e)
+    {
+        galleryFiles = e.GetMultipleFiles(50).ToList();
+    }
+    private async Task SubmitForm()
+    {
+        if(!IsEdit && file == null)
+        {
+            notificationService.Show("Artykuł musi zawierac zdjecie głowne!", EnumNotificationType.Failure);
+            return;
+        }
+        int mainImageId = 0;
+        if (file != null)
+        {
+            mainImageId = await fileService.UploadImage(file);
+        }
+        if (IsEdit && Article != null)
+        {
+
+            await articleService.UpdateArticleByIdAsync(Article.Id,title, text, author,mainImageId);
+        }
+        else
+        {
+            var articleId = await articleService.AddArticleAsync(title, text, author, mainImageId);
+            foreach(var image in galleryFiles)
+            {
+                await fileService.UploadImage(image, articleId);
+            }
+        }
+    }
+    private async Task ChoosePhoto(InputFileChangeEventArgs e)
+    {
+        file = e.File;
+        previewImage = await fileService.GetPreviewAsync(file);
+    }
+}
+
