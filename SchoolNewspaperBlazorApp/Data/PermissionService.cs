@@ -6,7 +6,7 @@ using SchoolNewspaperBlazorApp.Data.Enums;
 
 namespace SchoolNewspaperBlazorApp.Data.Seeders
 {
-    public static class PermissionSeeder
+    public static class PermissionService
     {
         public static async Task SeedAsync(
             IDbContextFactory<NewspaperDbContext> contextFactory)

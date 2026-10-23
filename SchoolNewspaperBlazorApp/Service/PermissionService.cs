@@ -11,7 +11,7 @@ namespace SchoolNewspaperBlazorApp.Service
         private readonly IPermissionRepository _permissionRepository;
         private readonly INotificationService _notificationService;
         private readonly AuthenticationStateProvider _asp;
-        public PermissionService(IPermissionRepository permissionRepository, AuthenticationStateProvider asp, INotificationService notificationService  )
+        public PermissionService(IPermissionRepository permissionRepository, AuthenticationStateProvider asp, INotificationService notificationService)
         {
             _permissionRepository = permissionRepository;
             _asp = asp;
@@ -22,7 +22,7 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             return await _permissionRepository.GetUserPermissionsAsync(userId);
         }
-        public async Task<Dictionary<EnumPermissions,bool>> GetAllPermissionsAsync()
+        public async Task<Dictionary<EnumPermissions, bool>> GetAllPermissionsAsync()
         {
             var id = await GetUserId();
             return await _permissionRepository.GetAllUserPermissionsAsync(id);
@@ -42,7 +42,7 @@ namespace SchoolNewspaperBlazorApp.Service
                 return false;
             }
             var succces = await _permissionRepository.SavePermissionsAsync(permissions, userId);
-            if(succces)
+            if (succces)
             {
                 _notificationService.Show("Nadano uprawnienia!", EnumNotificationType.Success);
 

@@ -36,7 +36,7 @@ namespace SchoolNewspaperBlazorApp
             builder.Services.AddScoped<IArticleService, ArticleService>();
             builder.Services.AddScoped<IFileService, FileService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
-            builder.Services.AddScoped<IPermissionService, PermissionService>();
+            builder.Services.AddScoped<IPermissionService, Service.PermissionService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
 
             builder.Services.AddAuthentication(
@@ -61,7 +61,7 @@ namespace SchoolNewspaperBlazorApp
                 var contextFactory = scope.ServiceProvider
                     .GetRequiredService<IDbContextFactory<NewspaperDbContext>>();
 
-                await PermissionSeeder.SeedAsync(contextFactory);
+                await Data.Seeders.PermissionService.SeedAsync(contextFactory);
             }
 
             // Configure the HTTP request pipeline.

@@ -83,7 +83,7 @@ namespace SchoolNewspaperBlazorApp.Repository
                     });
                     await _context.SaveChangesAsync();
                 }
-                    return true;
+                return true;
             }
             catch (Exception)
             {
