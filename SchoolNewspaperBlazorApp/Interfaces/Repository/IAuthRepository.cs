@@ -7,5 +7,6 @@ namespace SchoolNewspaperBlazorApp.Interfaces.Repository
         Task<bool> AddUserAsync(User user);
         Task<User> CheckIfRegisteredAsync(string login);
         Task<List<User>> GetAllUsersAsync();
+        Task<User> GetUserByIdAsync(int userId);
     }
 }

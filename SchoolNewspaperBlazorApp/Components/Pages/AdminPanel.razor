@@ -278,7 +278,7 @@
     [SupplyParameterFromQuery(Name = "notification")]
     public string? Notification { get; set; }
     [Inject]
-    public IPermissionService permissionService { get; set; }
+    public IPermissionService permissionService { get; set; } = null!;
     public int view = 0;
     public List<Article> articleList = new List<Article>();
     public Article? articleToEdit;

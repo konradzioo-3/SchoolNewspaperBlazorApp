@@ -12,13 +12,15 @@ namespace SchoolNewspaperBlazorApp.Service
         private readonly IArticleRepository _articleRepository;
         private readonly IPermissionService _permissionService;
         private readonly INotificationService _notificationService;
-        public ArticleService(IArticleRepository articleRepository, IPermissionService permissionService,INotificationService notificationService)
+        private readonly IAuthRepository _authRepository;
+        public ArticleService(IArticleRepository articleRepository, IPermissionService permissionService,INotificationService notificationService,IAuthRepository authRepository)
         {
             _articleRepository = articleRepository;
             _permissionService = permissionService;
             _notificationService = notificationService;
+            _authRepository = authRepository;
         }
-        public async Task<int> AddArticleAsync(string title, string text, string author,int fileId,EnumArticleType? articleType)
+        public async Task<int> AddArticleAsync(string title, string text,int fileId,EnumArticleType? articleType)
         {
         
             if(string.IsNullOrEmpty(title))
@@ -42,12 +44,13 @@ namespace SchoolNewspaperBlazorApp.Service
                 _notificationService.Show("Brak uprawnień!", EnumNotificationType.Failure);
                 return 0;
             }
-
+                var userId = await _permissionService.GetUserId();
+                var author = await _authRepository.GetUserByIdAsync(userId);
                 var article = new Article
                 {
                     Title = title,
                     Text = text,
-                    Author = author,
+                    Author = $"{author.Name} {author.Surname}\n{author.Role}",
                     PublishDate = DateTime.Now,
                     MainImageId = fileId,
                     ArticleType = articleType.Value
@@ -63,7 +66,7 @@ namespace SchoolNewspaperBlazorApp.Service
             }
             return articleId;
         }
-        public async Task UpdateArticleByIdAsync(int id,string title,string text,string author, int fileId,EnumArticleType? articleType)
+        public async Task UpdateArticleByIdAsync(int id,string title,string text,int fileId,EnumArticleType? articleType)
         {
             if (string.IsNullOrEmpty(title))
             {
@@ -86,12 +89,14 @@ namespace SchoolNewspaperBlazorApp.Service
                 _notificationService.Show("Brak uprawnień!", EnumNotificationType.Failure);
                 return;
             }
+            var userId = await _permissionService.GetUserId();
+            var author = await _authRepository.GetUserByIdAsync(userId);
             var article = new Article
             {
                 Id = id,
                 Title = title,
                 Text = text,
-                Author = author,
+                Author = $"{author.Name} {author.Surname}\n{author.Role}",
                 MainImageId = fileId,
                 ArticleType = articleType.Value
                 

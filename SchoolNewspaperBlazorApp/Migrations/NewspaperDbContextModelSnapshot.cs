@@ -100,6 +100,50 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.ToTable("Permissions");
                 });
 
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.SubstituteLessons", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClassName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldRoom")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OrginalDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OriginalTeacher")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Room")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Subject")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("SubstituteDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SubstituteTeacher")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId")
+                        .IsUnique();
+
+                    b.ToTable("ArticleSubstitutes");
+                });
+
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.User", b =>
                 {
                     b.Property<int>("Id")
@@ -122,6 +166,10 @@ namespace SchoolNewspaperBlazorApp.Migrations
 
                     b.Property<DateTime>("RegisterDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Surname")
                         .IsRequired()
@@ -151,6 +199,17 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.ToTable("UserPermissions");
                 });
 
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.SubstituteLessons", b =>
+                {
+                    b.HasOne("SchoolNewspaperBlazorApp.Data.Article", "Article")
+                        .WithOne("SubstituteDetails")
+                        .HasForeignKey("SchoolNewspaperBlazorApp.Data.SubstituteLessons", "ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Article");
+                });
+
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.UserPermission", b =>
                 {
                     b.HasOne("SchoolNewspaperBlazorApp.Data.Permission", "Permission")
@@ -168,6 +227,11 @@ namespace SchoolNewspaperBlazorApp.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Article", b =>
+                {
+                    b.Navigation("SubstituteDetails");
                 });
 
             modelBuilder.Entity("SchoolNewspaperBlazorApp.Data.Permission", b =>

@@ -115,7 +115,7 @@
 @code
 {
     [Inject]
-    public AuthenticationStateProvider Asp { get; set; }
+    public AuthenticationStateProvider Asp { get; set; } = null!;
     private bool _isLoggedIn;
     protected override async Task OnInitializedAsync()
     {

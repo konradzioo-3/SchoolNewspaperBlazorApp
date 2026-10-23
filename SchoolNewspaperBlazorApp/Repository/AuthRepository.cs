@@ -12,6 +12,12 @@ namespace SchoolNewspaperBlazorApp.Repository
         {
             _contextFactory = contextFactory;
         }
+        public async Task<User> GetUserByIdAsync(int userId)
+        {
+            await using var _context = await _contextFactory.CreateDbContextAsync();
+   
+            return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        }
         public async Task<List<User>> GetAllUsersAsync()
         {
             await using var _context = await _contextFactory.CreateDbContextAsync();

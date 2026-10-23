@@ -10,6 +10,7 @@
         string email = "admin123@admin.pl";
         string name = "test";
         string surname = "test";
-        await authService.AddUserAsync(password,email,name,surname);
+        string role = "test;";
+        await authService.AddUserAsync(password,email,name,surname,role);
     }
 }

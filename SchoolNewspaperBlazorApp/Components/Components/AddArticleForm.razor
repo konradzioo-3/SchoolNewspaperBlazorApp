@@ -32,8 +32,6 @@
         <label class="form-label">Treść</label>
         <textarea @bind="text" class="form-control mb-3" rows="6" placeholder="Treść artykułu..." required></textarea>
 
-        <label class="form-label">Autor</label>
-        <input @bind="author" class="form-control mb-4" placeholder="Imię i nazwisko" required />
         <label class="form-label">Zdjęcia do galerii</label>
         <InputFile onchange="ChooseGalleryPhotos" accept="image/*" multiple class="form-control mb3" />
         <button type="submit" class="btn btn-primary w-100">@(IsEdit ? "Zatwierdź edycje" : "Dodaj artykuł")</button>
@@ -50,7 +48,6 @@
     public Article? Article { get; set;  }
     private string title = "";
     private string text = "";
-    private string author = "";
     private string? previewImage;
     private EnumArticleType? selectedType;
     IBrowserFile? file;
@@ -61,7 +58,6 @@
         {
             title = Article.Title;
             text = Article.Text;
-            author = Article.Author;
         }
     }
     private string GetTypeName(EnumArticleType type)
@@ -97,11 +93,12 @@
         if (IsEdit && Article != null)
         {
 
-            await articleService.UpdateArticleByIdAsync(Article.Id, title, text, author, mainImageId, selectedType);
+            await articleService.UpdateArticleByIdAsync(Article.Id, title, text, mainImageId, selectedType);
         }
         else
         {
-            var articleId = await articleService.AddArticleAsync(title, text, author, mainImageId, selectedType);
+
+            var articleId = await articleService.AddArticleAsync(title, text, mainImageId, selectedType);
             foreach(var image in galleryFiles)
             {
                 await fileService.UploadImage(image, articleId);
@@ -110,7 +107,6 @@
             {
                 title = "";
                 text = "";
-                author = "";
                 previewImage = "";
                 selectedType = null;
                 file = null;

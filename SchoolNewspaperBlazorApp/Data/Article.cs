@@ -12,6 +12,7 @@ namespace SchoolNewspaperBlazorApp.Data
         public DateTime PublishDate { get; set; }
         public int MainImageId { get; set; }
         public EnumArticleType ArticleType { get; set; }
+        public SubstituteLessons? SubstituteDetails { get; set; }
 
     }
 

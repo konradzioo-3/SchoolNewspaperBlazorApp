@@ -27,7 +27,7 @@ namespace SchoolNewspaperBlazorApp.Service
         {
             return await _authRepository.GetAllUsersAsync();
         }
-        public async Task<bool> AddUserAsync(string password, string email,string name,string surname)
+        public async Task<bool> AddUserAsync(string password, string email,string name,string surname,string role)
         {
             if(string.IsNullOrWhiteSpace(password))
             {
@@ -56,7 +56,8 @@ namespace SchoolNewspaperBlazorApp.Service
                 Email = email,
                 RegisterDate = DateTime.Now,
                 Name = name,
-                Surname = surname
+                Surname = surname,
+                Role = role
             };
             var succes = await _authRepository.AddUserAsync(auth);
             if(succes)

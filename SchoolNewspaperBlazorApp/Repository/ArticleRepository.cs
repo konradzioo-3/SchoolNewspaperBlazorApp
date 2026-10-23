@@ -103,9 +103,16 @@ namespace SchoolNewspaperBlazorApp.Repository
             try
             {
                 var article = await _context.Articles.FirstOrDefaultAsync(a => a.Id == id);
+                if(article != null)
+                {
                 _context.Articles.Remove(article);
                 await _context.SaveChangesAsync();
                 return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             catch
             {

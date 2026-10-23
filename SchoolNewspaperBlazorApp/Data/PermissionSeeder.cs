@@ -63,6 +63,7 @@ namespace SchoolNewspaperBlazorApp.Data.Seeders
                     RegisterDate = DateTime.Now,
                     Name= adminEmail,
                     Surname= adminEmail,
+                    Role= "Admin",
                 };
 
                 context.Users.Add(admin);
