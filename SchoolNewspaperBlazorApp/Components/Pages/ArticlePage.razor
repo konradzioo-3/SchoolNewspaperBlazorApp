@@ -1,0 +1,129 @@
+﻿@page "/article/{Id:int}"
+
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+
+
+@if (article != null)
+{
+    <article class="article-page">
+
+        @if (!string.IsNullOrEmpty(imageUrl))
+        {
+            <div class="article-page__img-wrap">
+                <img src="@imageUrl" alt="@article.Title" class="article-page__img" />
+            </div>
+        }
+
+        <h1 class="article-page__title">@article.Title</h1>
+
+
+        @if (blocks.Count > 0)
+        {
+            @* Treść złożona z bloków: tekst i zdjęcia w kolejności ustalonej przez autora *@
+            @foreach (var block in blocks)
+            {
+                @if (block.IsText)
+                {
+                    <div class="article-page__content article-page__block" @key="block.Key">@block.Text</div>
+                }
+                else
+                {
+                    <div class="article-page__img-wrap" @key="block.Key">
+                        <img src="@block.Url" alt="@article.Title" class="article-page__img" loading="lazy" />
+                    </div>
+                }
+            }
+            <div class="article-page__meta">
+                <span class="article-page__author">@article.Author</span>
+                @if (!string.IsNullOrWhiteSpace(article.AuthorRole))
+                {
+                    <span class="article-page__role">@article.AuthorRole</span>
+                }
+            </div>
+        }
+        else
+        {
+            @* Starszy artykuł bez bloków: tekst, autor, a pod spodem galeria *@
+            <div class="article-page__content">
+                @article.Text
+            </div>
+
+            <div class="article-page__meta">
+                <span class="article-page__author">@article.Author</span>
+                @if (!string.IsNullOrWhiteSpace(article.AuthorRole))
+                {
+                    <span class="article-page__role">@article.AuthorRole</span>
+                }
+            </div>
+            @foreach (var galeryImage in GalleryImmageNames)
+            {
+                <div class="article-page__img-wrap">
+                    <img src="@galeryImage" alt="@article.Title" class="article-page__img" />
+                </div>
+            }
+        }
+    </article>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    public Article? article;
+    private string? imageUrl;
+    public List<string> GalleryImmageNames { get; set; } = new();
+    private List<ViewBlock> blocks = new();
+
+    // Blok gotowy do wyświetlenia: albo tekst, albo adres zdjęcia.
+    private sealed record ViewBlock(Guid Key, bool IsText, string? Text, string? Url);
+
+    [Inject]
+    public IArticleService articleService { get; set; } = default!;
+
+    [Inject]
+    public IFileService fileService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        article = await articleService.GetArticleByIdAsync(Id);
+
+        if (article != null)
+        {
+            var fileName = await fileService.TryGetFileNameByIdAsync(article.MainImageId);
+            if (!string.IsNullOrWhiteSpace(fileName))
+            {
+                imageUrl = $"/Images/{fileName}";
+            }
+            foreach (var saved in await articleService.GetBlocksAsync(article.Id))
+            {
+                if (saved.BlockType == EnumArticleBlockType.Text)
+                {
+                    if (!string.IsNullOrWhiteSpace(saved.Text))
+                    {
+                        blocks.Add(new ViewBlock(Guid.NewGuid(), true, saved.Text, null));
+                    }
+                }
+                else if (saved.MediaFileId is int mediaId)
+                {
+                    var name = await fileService.TryGetFileNameByIdAsync(mediaId);
+                    if (name != null)
+                    {
+                        blocks.Add(new ViewBlock(Guid.NewGuid(), false, null, $"/Images/{name}"));
+                    }
+                }
+            }
+
+            if (blocks.Count == 0)
+            {
+                var files = await fileService.GetGalleryFileNamesByIdAsync(article.Id);
+                foreach (var file in files)
+                {
+                    GalleryImmageNames.Add($"/Images/{file}");
+                }
+            }
+
+        }
+    }
+}

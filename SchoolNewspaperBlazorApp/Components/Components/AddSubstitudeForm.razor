@@ -1,0 +1,263 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject ITeacherService _teacherService
+@inject ISchoolDictionaryService _dictionaryService
+@inject ICustomFieldService _fieldService
+@inject ISubstituteService _substituteService
+@inject IJSRuntime _js
+
+<div class="substitute-form">
+    <h3 class="role-form__subtitle">Nowe zastępstwo</h3>
+    <p class="role-form__hint">
+        Klasy, sale, przedmioty i nauczycieli dodasz w „Dane szkolne”, a dodatkowe pola formularza w „Pola formularza”.
+    </p>
+
+    <form @onsubmit="AddSubstituteAsync" @onsubmit:preventDefault>
+        <div class="substitute-form__grid">
+            <div>
+                <label class="form-label">Data zastępstwa *</label>
+                <input type="date" class="form-control mb-3" @bind="_substituteDate" required />
+            </div>
+            <div>
+                <label class="form-label">Numer lekcji</label>
+                <input type="number" min="0" max="20" class="form-control mb-3"
+                       @bind="_lessonNumber" placeholder="np. 3" />
+            </div>
+            <div>
+                <label class="form-label">Klasa *</label>
+                <DictionarySelect Items="_classNames" @bind-Value="_className"
+                                  Placeholder="Wybierz klasę" MaxLength="50" Required="true" />
+            </div>
+            <div>
+                <label class="form-label">Przedmiot</label>
+                <DictionarySelect Items="_subjectNames" @bind-Value="_subject"
+                                  Placeholder="Wybierz przedmiot" MaxLength="100" />
+            </div>
+            <div>
+                <label class="form-label">Nauczyciel nieobecny *</label>
+                <select class="form-select mb-3" @bind="_originalTeacherId">
+                    <option value="">Wybierz nauczyciela</option>
+                    @foreach (var teacher in _teachers)
+                    {
+                        <option value="@teacher.Id">@teacher.FullName</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Nauczyciel zastępujący *</label>
+                <select class="form-select mb-3" @bind="_substituteTeacherId">
+                    <option value="">Wybierz nauczyciela</option>
+                    @foreach (var teacher in _teachers)
+                    {
+                        <option value="@teacher.Id">@teacher.FullName</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="form-label">Sala (stara)</label>
+                <DictionarySelect Items="_roomNames" @bind-Value="_oldRoom"
+                                  Placeholder="Wybierz salę" MaxLength="50" />
+            </div>
+            <div>
+                <label class="form-label">Sala (nowa)</label>
+                <DictionarySelect Items="_roomNames" @bind-Value="_room"
+                                  Placeholder="Wybierz salę" MaxLength="50" />
+            </div>
+            <div>
+                <label class="form-label">Data pierwotnej lekcji</label>
+                <input type="date" class="form-control mb-3" @bind="_originalDate" />
+                <small class="role-form__hint">Wypełnij tylko, jeśli lekcja została przeniesiona z innego dnia.</small>
+            </div>
+            <div>
+                <label class="form-label">Uwagi</label>
+                <input type="text" maxlength="500" class="form-control mb-3"
+                       @bind="_note" placeholder="np. lekcja w sali komputerowej" />
+            </div>
+
+            @foreach (var field in _fields)
+            {
+                <div @key="field.Id">
+                    <label class="form-label">@field.Label@(field.IsRequired ? " *" : "")</label>
+                    @switch (field.FieldType)
+                    {
+                        case EnumCustomFieldType.Number:
+                            <input type="text" inputmode="decimal" class="form-control mb-3" maxlength="50"
+                                   value="@GetValue(field.Id)" required="@field.IsRequired"
+                                   @onchange="e => SetValue(field.Id, e.Value?.ToString())" />
+                            break;
+                        case EnumCustomFieldType.Date:
+                            <input type="date" class="form-control mb-3"
+                                   value="@GetValue(field.Id)" required="@field.IsRequired"
+                                   @onchange="e => SetValue(field.Id, e.Value?.ToString())" />
+                            break;
+                        case EnumCustomFieldType.Checkbox:
+                            <label class="field-manager__flag mb-3">
+                                <input type="checkbox" class="form-check-input"
+                                       checked="@IsChecked(field.Id)"
+                                       @onchange="e => SetChecked(field.Id, e)" />
+                                Tak
+                            </label>
+                            break;
+                        case EnumCustomFieldType.Select:
+                            <select class="form-select mb-3" value="@GetValue(field.Id)" required="@field.IsRequired"
+                                    @onchange="e => SetValue(field.Id, e.Value?.ToString())">
+                                <option value="">Wybierz</option>
+                                @foreach (var option in field.GetOptions())
+                                {
+                                    <option value="@option">@option</option>
+                                }
+                            </select>
+                            break;
+                        default:
+                            <input type="text" class="form-control mb-3" maxlength="500"
+                                   value="@GetValue(field.Id)" required="@field.IsRequired"
+                                   @onchange="e => SetValue(field.Id, e.Value?.ToString())" />
+                            break;
+                    }
+                </div>
+            }
+        </div>
+
+        @if (_teachers.Count == 0)
+        {
+            <p class="role-form__hint">
+                Brak nauczycieli w bazie. Dodaj nauczyciela poniżej, aby móc utworzyć zastępstwo.
+            </p>
+        }
+
+        <button type="submit" class="btn btn-primary w-100">Dodaj zastępstwo</button>
+    </form>
+
+    <hr class="substitute-form__divider" />
+
+    <h3 class="role-form__subtitle">Nauczyciele w bazie (@_teachers.Count)</h3>
+    <form @onsubmit="AddTeacherAsync" @onsubmit:preventDefault class="role-form__row">
+        <input type="text" class="form-control" maxlength="100"
+               placeholder="Imię" @bind="_teacherName" @bind:event="oninput" required />
+        <input type="text" class="form-control" maxlength="100"
+               placeholder="Nazwisko" @bind="_teacherSurname" @bind:event="oninput" required />
+        <button type="submit" class="btn btn-primary">Dodaj nauczyciela</button>
+    </form>
+
+    @if (_teachers.Count > 0)
+    {
+        <ul class="role-form__list">
+            @foreach (var teacher in _teachers)
+            {
+                <li class="role-form__chip" @key="teacher.Id">@teacher.FullName</li>
+            }
+        </ul>
+    }
+
+    <hr class="substitute-form__divider" />
+
+    <h3 class="role-form__subtitle">Ostatnio dodane zastępstwa</h3>
+    <SubstituteList Substitutes="_recent"
+                    Fields="_fields"
+                    CanDelete="true"
+                    OnDelete="RemoveSubstituteAsync"
+                    EmptyText="Nie dodano jeszcze zastępstw" />
+</div>
+
+@code {
+    private List<Teacher> _teachers = new();
+    private List<SubstituteLessons> _recent = new();
+    private List<CustomField> _fields = new();
+    private List<string> _classNames = new();
+    private List<string> _subjectNames = new();
+    private List<string> _roomNames = new();
+    private Dictionary<int, string?> _customValues = new();
+
+    private DateTime? _substituteDate = DateTime.Today;
+    private DateTime? _originalDate;
+    private int? _lessonNumber;
+    private string? _className;
+    private string? _subject;
+    private int? _originalTeacherId;
+    private int? _substituteTeacherId;
+    private string? _oldRoom;
+    private string? _room;
+    private string? _note;
+
+    private string _teacherName = string.Empty;
+    private string _teacherSurname = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _teachers = await _teacherService.GetAllTeachersAsync();
+        _recent = await _substituteService.GetRecentSubstitutesAsync(30);
+        _fields = await _fieldService.GetActiveAsync();
+        _classNames = (await _dictionaryService.GetAllAsync(EnumDictionaryKind.Class)).Select(x => x.Name).ToList();
+        _subjectNames = (await _dictionaryService.GetAllAsync(EnumDictionaryKind.Subject)).Select(x => x.Name).ToList();
+        _roomNames = (await _dictionaryService.GetAllAsync(EnumDictionaryKind.Room)).Select(x => x.Name).ToList();
+    }
+
+    private string GetValue(int fieldId) => _customValues.TryGetValue(fieldId, out var v) ? v ?? string.Empty : string.Empty;
+
+    private void SetValue(int fieldId, string? value) => _customValues[fieldId] = value;
+
+    private bool IsChecked(int fieldId) => GetValue(fieldId) == "true";
+
+    private void SetChecked(int fieldId, ChangeEventArgs e) => SetValue(fieldId, e.Value is true ? "true" : "false");
+
+    private async Task AddSubstituteAsync()
+    {
+        var success = await _substituteService.AddSubstituteAsync(
+            _className ?? string.Empty,
+            _originalTeacherId,
+            _substituteTeacherId,
+            _subject,
+            _lessonNumber,
+            _originalDate,
+            _substituteDate,
+            _oldRoom,
+            _room,
+            _note,
+            _customValues);
+
+        if (success)
+        {
+            // Data i nauczyciele zostają - zwykle dodaje się kilka zastępstw pod rząd.
+            _lessonNumber = null;
+            _className = null;
+            _customValues = new Dictionary<int, string?>();
+            _subject = null;
+            _oldRoom = null;
+            _room = null;
+            _note = null;
+            _originalDate = null;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task AddTeacherAsync()
+    {
+        var teacher = await _teacherService.AddTeacherAsync(_teacherName, _teacherSurname);
+        if (teacher != null)
+        {
+            _teacherName = string.Empty;
+            _teacherSurname = string.Empty;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveSubstituteAsync(int id)
+    {
+        var confirmed = await _js.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunąć to zastępstwo?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        if (await _substituteService.RemoveSubstituteAsync(id))
+        {
+            await ReloadAsync();
+        }
+    }
+}

@@ -1,0 +1,19 @@
+﻿@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IAuthService authService
+@inject IRoleService roleService
+<button class="btn btn-dark btn-sm" @onclick="AddUser">ADD USER (TECHNICZNE)</button>
+
+@code {
+
+    public async Task AddUser()
+    {
+        string password = "admin123";
+        string email = "admin123@admin.pl";
+        string name = "test";
+        string surname = "test";
+        // konto testowe dostaje pierwszą istniejącą rolę (po seedowaniu zawsze jest "Admin")
+        var roles = await roleService.GetAllRolesAsync();
+        int? roleId = roles.FirstOrDefault()?.Id;
+        await authService.AddUserAsync(password,email,name,surname,roleId);
+    }
+}

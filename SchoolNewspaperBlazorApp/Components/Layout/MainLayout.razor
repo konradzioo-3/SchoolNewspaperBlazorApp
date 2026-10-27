@@ -1,0 +1,179 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using SchoolNewspaperBlazorApp.Components.Components
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inherits LayoutComponentBase
+@implements IDisposable
+
+
+<div class="site-shell">
+<NotificationPopup/>
+    <header class="site-header">
+        <div class="site-header__inner">
+
+            <a class="brand" href="/" aria-label="Gazetka szkolna ETI">
+                <span class="brand__logo-wrap">
+                    <img src="/logo.png"
+                         class="brand__logo"
+                         alt="Logo ETI" />
+                </span>
+
+                <span class="brand__text">
+                    <span class="brand__name">GAZETKA SZKOLNA</span>
+                    <span class="brand__subtitle">
+                        Elitarne Technikum Informatyczne
+                    </span>
+                </span>
+            </a>
+
+            <nav class="main-nav" aria-label="Menu główne">
+                <NavLink class="main-nav__link"
+                         href="/"
+                         Match="NavLinkMatch.All">
+                    <span class="nav-icon">⌂</span>
+                    Strona główna
+                </NavLink>
+                <NavLink class="main-nav__link" href="/zastepstwa">
+                    <span class="nav-icon">☰</span>
+                    Zastępstwa
+                </NavLink>
+                <NavLink class="main-nav__link" href="/technical">
+                    <span class="nav-icon">⚙️</span>
+                    PANEL TECHNICZNY
+                </NavLink>
+            </nav>
+            @if (!_isLoggedIn)
+            {
+                <div class="site-header__actions">
+                    <NavLink class="header-login" href="/login">
+                        <span>♙</span>
+                        Zaloguj się
+                    </NavLink>
+                </div>
+            }
+            else
+            {
+                <div class="site-header__actions">
+                    @* Wylogowanie to POST na /auth/logout - strony /logout nie ma. *@
+                    <form method="post" action="/auth/logout" class="header-logout-form">
+                        <button type="submit" class="header-login header-login--button">
+                            <span>♙</span>
+                            Wyloguj się
+                        </button>
+                    </form>
+                </div>
+            }
+
+        </div>
+
+        <div class="site-header__bottom">
+            <div class="site-header__bottom-inner">
+                <div class="site-status">
+                    <span class="site-status__dot"></span>
+                    <span>Twoje szkolne centrum informacji</span>
+                </div>
+                @if (_isLoggedIn)
+                {
+                    <NavLink class="admin-link" href="/adminPanel">
+                        <span class="admin-link__icon">⚙</span>
+                        Panel administratora
+                        <span>↗</span>
+                    </NavLink>
+                }
+            </div>
+        </div>
+    </header>
+
+    <main class="site-main">
+        @Body
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-footer__inner">
+
+            <div class="site-footer__brand">
+                <img src="/logo.png"
+                     class="site-footer__logo"
+                     alt="Logo ETI" />
+
+                <div>
+                    <strong>Gazetka szkolna ETI</strong>
+                    <p>Szkolne wiadomości. Nasze historie.</p>
+                </div>
+            </div>
+
+            <nav class="site-footer__links" aria-label="Linki w stopce">
+                <NavLink href="/" Match="NavLinkMatch.All">
+                    Strona główna
+                </NavLink>
+                <NavLink href="/aktualnosci">Aktualności</NavLink>
+                <NavLink href="/wydarzenia">Wydarzenia</NavLink>
+                <a href="https://technikuminformatyczne.edu.pl/"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    Strona szkoły ↗
+                </a>
+            </nav>
+
+            <span class="site-footer__copyright">
+                © @DateTime.Now.Year ETI
+            </span>
+
+        </div>
+    </footer>
+</div>
+@code
+{
+    [Inject]
+    public AuthenticationStateProvider Asp { get; set; } = null!;
+    [Inject]
+    public NavigationManager Nav { get; set; } = null!;
+    [Inject]
+    public IAuthService AuthService { get; set; } = null!;
+    [Inject]
+    public IPermissionService PermissionService { get; set; } = null!;
+    private bool _isLoggedIn;
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Asp.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isLoggedIn = user.Identity?.IsAuthenticated ?? false;
+        Nav.LocationChanged += OnLocationChanged;
+        await EnforcePasswordChangeAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        try
+        {
+            await InvokeAsync(EnforcePasswordChangeAsync);
+        }
+        catch (Exception)
+        {
+            // Odłączony obwód Blazora - nic do zrobienia.
+        }
+    }
+
+    // Użytkownik z hasłem tymczasowym nie opuści strony zmiany hasła, dopóki go nie zmieni.
+    private async Task EnforcePasswordChangeAsync()
+    {
+        if (!_isLoggedIn)
+        {
+            return;
+        }
+        var path = new Uri(Nav.Uri).AbsolutePath;
+        if (path.StartsWith("/zmiana-hasla", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        var userId = await PermissionService.GetUserId();
+        if (await AuthService.MustChangePasswordAsync(userId))
+        {
+            Nav.NavigateTo("/zmiana-hasla?notification=firstLogin");
+        }
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}

@@ -1,0 +1,28 @@
+﻿@page "/zastepstwa"
+@using SchoolNewspaperBlazorApp.Components.Components
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject ISubstituteService substituteService
+@inject ICustomFieldService customFieldService
+
+<PageTitle>Zastępstwa - Gazetka ETI</PageTitle>
+
+<div class="section-heading">
+    <div>
+        <h2>Zastępstwa</h2>
+        <p>Aktualne i nadchodzące zastępstwa za nieobecnych nauczycieli.</p>
+    </div>
+</div>
+
+<SubstituteList Substitutes="substitutes" Fields="fields" EmptyText="Brak zaplanowanych zastępstw" />
+
+@code {
+    private List<SubstituteLessons> substitutes = new();
+    private List<CustomField> fields = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        substitutes = await substituteService.GetUpcomingSubstitutesAsync();
+        fields = await customFieldService.GetActiveAsync();
+    }
+}

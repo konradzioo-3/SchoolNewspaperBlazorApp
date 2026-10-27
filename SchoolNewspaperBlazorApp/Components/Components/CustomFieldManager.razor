@@ -1,0 +1,143 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject ICustomFieldService _fieldService
+@inject IJSRuntime _js
+
+<div class="field-manager">
+    <h3 class="role-form__subtitle">Nowe pole formularza zastępstw</h3>
+
+    <form @onsubmit="AddFieldAsync" @onsubmit:preventDefault>
+        <div class="substitute-form__grid">
+            <div>
+                <label class="form-label">Nazwa pola *</label>
+                <input type="text" class="form-control mb-3" maxlength="100"
+                       placeholder="np. Zajęcia w terenie" @bind="_label" @bind:event="oninput" required />
+            </div>
+            <div>
+                <label class="form-label">Typ pola</label>
+                <select class="form-select mb-3" @bind="_type">
+                    @foreach (var type in Enum.GetValues<EnumCustomFieldType>())
+                    {
+                        <option value="@type">@TypeName(type)</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (_type == EnumCustomFieldType.Select)
+        {
+            <label class="form-label">Opcje listy (każda w osobnej linii) *</label>
+            <textarea class="form-control mb-3" rows="4" @bind="_options" @bind:event="oninput"
+                      placeholder="Opcja 1&#10;Opcja 2"></textarea>
+        }
+
+        <div class="field-manager__flags">
+            @if (_type != EnumCustomFieldType.Checkbox)
+            {
+                <label class="field-manager__flag">
+                    <input type="checkbox" class="form-check-input" @bind="_required" />
+                    Pole wymagane przy dodawaniu zastępstwa
+                </label>
+            }
+            <label class="field-manager__flag">
+                <input type="checkbox" class="form-check-input" @bind="_showOnList" />
+                Pokazuj jako kolumnę na liście zastępstw
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Dodaj pole</button>
+    </form>
+
+    <hr class="substitute-form__divider" />
+
+    <h3 class="role-form__subtitle">Aktywne pola (@_fields.Count)</h3>
+    @if (_fields.Count == 0)
+    {
+        <p class="role-form__empty">Brak własnych pól. Formularz zastępstw ma tylko pola standardowe.</p>
+    }
+    else
+    {
+        <div class="substitute-table-wrap">
+            <table class="substitute-table">
+                <thead>
+                    <tr><th>Nazwa</th><th>Typ</th><th>Wymagane</th><th>Na liście</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var field in _fields)
+                    {
+                        <tr @key="field.Id">
+                            <td data-label="Nazwa">
+                                <strong>@field.Label</strong>
+                                @if (field.FieldType == EnumCustomFieldType.Select)
+                                {
+                                    <div class="substitute-moved">@string.Join(", ", field.GetOptions())</div>
+                                }
+                            </td>
+                            <td data-label="Typ">@TypeName(field.FieldType)</td>
+                            <td data-label="Wymagane">@(field.IsRequired ? "Tak" : "Nie")</td>
+                            <td data-label="Na liście">@(field.ShowOnList ? "Tak" : "Nie")</td>
+                            <td class="substitute-actions">
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => RemoveFieldAsync(field)">Usuń</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <p class="role-form__hint">
+        Pola pojawią się w formularzu dodawania zastępstw. Wartości z usuniętych pól zostają w bazie.
+    </p>
+</div>
+
+@code {
+    private List<CustomField> _fields = new();
+    private string _label = string.Empty;
+    private string? _options;
+    private EnumCustomFieldType _type = EnumCustomFieldType.Text;
+    private bool _required;
+    private bool _showOnList = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _fields = await _fieldService.GetActiveAsync();
+    }
+
+    public static string TypeName(EnumCustomFieldType type) => type switch
+    {
+        EnumCustomFieldType.Text => "Tekst",
+        EnumCustomFieldType.Number => "Liczba",
+        EnumCustomFieldType.Date => "Data",
+        EnumCustomFieldType.Checkbox => "Tak / Nie",
+        EnumCustomFieldType.Select => "Lista wyboru",
+        _ => type.ToString()
+    };
+
+    private async Task AddFieldAsync()
+    {
+        if (await _fieldService.AddAsync(_label, _type, _options, _required, _showOnList))
+        {
+            _label = string.Empty;
+            _options = null;
+            _type = EnumCustomFieldType.Text;
+            _required = false;
+            _showOnList = true;
+            _fields = await _fieldService.GetActiveAsync();
+        }
+    }
+
+    private async Task RemoveFieldAsync(CustomField field)
+    {
+        if (!await _js.InvokeAsync<bool>("confirm", $"Usunąć pole „{field.Label}”? Zniknie z formularza i listy zastępstw."))
+        {
+            return;
+        }
+        if (await _fieldService.RemoveAsync(field.Id))
+        {
+            _fields = await _fieldService.GetActiveAsync();
+        }
+    }
+}

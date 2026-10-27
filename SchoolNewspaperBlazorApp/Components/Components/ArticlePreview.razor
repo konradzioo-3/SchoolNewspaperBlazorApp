@@ -1,0 +1,123 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@* Podgląd artykułu na żywo: wygląd karty na stronie głównej oraz pełnej strony artykułu *@
+<div class="article-preview">
+    <div class="article-preview__bar">
+        <span class="article-preview__badge">
+            <span class="article-preview__dot"></span>
+            Podgląd na żywo
+        </span>
+
+        <div class="article-preview__tabs" role="tablist" aria-label="Tryb podglądu">
+            <button type="button"
+                    role="tab"
+                    aria-selected="@(!_showFull ? "true" : "false")"
+                    class="article-preview__tab @(!_showFull ? "is-active" : "")"
+                    @onclick="() => _showFull = false">
+                Karta
+            </button>
+            <button type="button"
+                    role="tab"
+                    aria-selected="@(_showFull ? "true" : "false")"
+                    class="article-preview__tab @(_showFull ? "is-active" : "")"
+                    @onclick="() => _showFull = true">
+                Cały artykuł
+            </button>
+        </div>
+    </div>
+
+    <div class="article-preview__stage">
+        @if (!_showFull)
+        {
+            <div class="article-card article-preview__card">
+                <div class="article-card__img-wrap">
+                    @if (!string.IsNullOrEmpty(MainImageUrl))
+                    {
+                        <img src="@MainImageUrl" class="article-card__img" alt="Zdjęcie główne" />
+                    }
+                    else
+                    {
+                        <div class="article-preview__placeholder">Brak zdjęcia głównego</div>
+                    }
+                </div>
+                <div class="article-card__body">
+                    @if (!string.IsNullOrWhiteSpace(CategoryName))
+                    {
+                        <span class="article-preview__category">@CategoryName</span>
+                    }
+                    <h5 class="article-card__title">@TitleOrPlaceholder</h5>
+                    <p class="article-card__text">@ExcerptOrPlaceholder</p>
+                    <div class="article-card__footer">
+                        <span class="article-card__author">@Author</span>
+                        <span class="article-card__more">Czytaj więcej →</span>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <article class="article-page article-preview__page">
+                @if (!string.IsNullOrEmpty(MainImageUrl))
+                {
+                    <div class="article-page__img-wrap">
+                        <img src="@MainImageUrl" alt="Zdjęcie główne" class="article-page__img" />
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(CategoryName))
+                {
+                    <span class="article-preview__category">@CategoryName</span>
+                }
+                <h1 class="article-page__title">@TitleOrPlaceholder</h1>
+                @if (!Blocks.Any(b => HasContent(b)))
+                {
+                    <div class="article-page__content">@ExcerptOrPlaceholder</div>
+                }
+                @foreach (var block in Blocks.Where(HasContent))
+                {
+                    @if (block.Type == EnumArticleBlockType.Text)
+                    {
+                        <div class="article-page__content article-page__block" @key="block.Key">@block.Text</div>
+                    }
+                    else
+                    {
+                        <div class="article-page__img-wrap" @key="block.Key">
+                            <img src="@block.PreviewUrl" alt="Zdjęcie w artykule" class="article-page__img" />
+                        </div>
+                    }
+                }
+                <div class="article-page__meta">
+                    <span class="article-page__author">@Author</span>
+                    <span class="article-page__role">@DateTime.Now.ToString("d MMMM yyyy")</span>
+                </div>
+            </article>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public IReadOnlyList<ArticleBlockDraft> Blocks { get; set; } = Array.Empty<ArticleBlockDraft>();
+    [Parameter] public string? CategoryName { get; set; }
+    [Parameter] public string? MainImageUrl { get; set; }
+    [Parameter] public string Author { get; set; } = "Ty";
+
+    private bool _showFull;
+
+    private string TitleOrPlaceholder =>
+        string.IsNullOrWhiteSpace(Title) ? "Tytuł artykułu pojawi się tutaj" : Title;
+
+    private static bool HasContent(ArticleBlockDraft block) =>
+        block.Type == EnumArticleBlockType.Text
+            ? !string.IsNullOrWhiteSpace(block.Text)
+            : !string.IsNullOrEmpty(block.PreviewUrl);
+
+    // Na karcie pokazujemy początek pierwszego niepustego bloku tekstu.
+    private string ExcerptOrPlaceholder
+    {
+        get
+        {
+            var first = Blocks.FirstOrDefault(b => b.Type == EnumArticleBlockType.Text && !string.IsNullOrWhiteSpace(b.Text));
+            return first?.Text ?? "Zacznij pisać treść, a podgląd odświeży się automatycznie.";
+        }
+    }
+}

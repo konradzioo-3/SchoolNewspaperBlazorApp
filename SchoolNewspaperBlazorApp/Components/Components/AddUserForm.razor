@@ -1,0 +1,60 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+<form @onsubmit="AddUserAsync" @onsubmit:preventDefault>
+    <label class="form-label">Imię</label>
+    <input type="text" @bind="Name" class="form-control mb-4" placeholder="Imię" required />
+
+    <label class="form-label">Nazwisko</label>
+    <input type="text" @bind="Surname" class="form-control mb-4" placeholder="Nazwisko" required />
+
+    <label class="form-label">Stanowisko</label>
+    <select @bind="RoleId" class="form-select mb-4" required>
+        <option value="">Wybierz stanowisko</option>
+        @foreach (var role in roles)
+        {
+            <option value="@role.Id">@role.Name</option>
+        }
+    </select>
+
+    <label class="form-label">E-mail</label>
+    <input type="email" @bind="Email" class="form-control mb-4" placeholder="E-Mail" required />
+
+    <label class="form-label">Hasło</label>
+    <input type="password" @bind="Password" class="form-control mb-4" placeholder="Hasło" required />
+
+    <button type="submit" class="btn btn-primary w-100">Dodaj</button>
+</form>
+
+
+@code {
+    [Parameter]
+    public EventCallback ClearView { get; set; }
+    public required string Password { get; set; }
+    public required string Email { get; set; }
+    public required string Name { get; set; }
+    public required string Surname { get; set; }
+    public int? RoleId { get; set; }
+    private List<Role> roles = new();
+
+    [Inject]
+    public IAuthService AuthService { get; set; } = null!;
+    [Inject]
+    public IRoleService RoleService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        roles = await RoleService.GetAllRolesAsync();
+    }
+
+    public async Task AddUserAsync()
+    {
+        var succces = await AuthService.AddUserAsync(Password, Email,Name,Surname,RoleId);
+        if(succces)
+        {
+            Password = "";
+            Email = "";
+            await ClearView.InvokeAsync();
+        }
+    }
+
+}
