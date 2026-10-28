@@ -1,0 +1,120 @@
+﻿@* Treść artykułu: tekst, pojedyncze zdjęcia i kolaże (kolejne zdjęcia scalone w jeden obraz).
+   Używany na stronie artykułu i w podglądzie w edytorze, więc oba wyglądają tak samo. *@
+
+<div class="article-blocks">
+    @foreach (var segment in Segments)
+    {
+        if (segment.Kind == BlockSegmentKind.Text)
+        {
+            <div class="article-page__content article-page__block" @key="segment.Items[0].Key">@segment.Items[0].Text</div>
+        }
+        else if (segment.Kind == BlockSegmentKind.Single)
+        {
+            var item = segment.Items[0];
+            <figure class="article-figure" @key="item.Key">
+                <button type="button" class="article-figure__btn" aria-label="Powiększ zdjęcie"
+                        @onclick="() => Open(item.ImageUrl)">
+                    <img src="@item.ImageUrl" alt="@AltText" loading="lazy" />
+                </button>
+            </figure>
+        }
+        else
+        {
+            <figure class="collage collage--n@(segment.Items.Count)" @key="segment.Items[0].Key"
+                    aria-label="Kolaż: @segment.Items.Count zdjęć">
+                @foreach (var item in segment.Items)
+                {
+                    <button type="button" class="collage__item" aria-label="Powiększ zdjęcie"
+                            @onclick="() => Open(item.ImageUrl)" @key="item.Key">
+                        <img src="@item.ImageUrl" alt="@AltText" loading="lazy" />
+                    </button>
+                }
+            </figure>
+        }
+    }
+</div>
+
+@if (_openIndex >= 0 && _openIndex < _images.Count)
+{
+    <div class="lightbox" role="dialog" aria-modal="true" aria-label="Powiększone zdjęcie"
+         tabindex="0" @ref="_overlay" @onclick="Close" @onkeydown="OnKeyDown">
+        <button type="button" class="lightbox__close" aria-label="Zamknij" @onclick="Close">✕</button>
+
+        @if (_images.Count > 1)
+        {
+            <button type="button" class="lightbox__nav lightbox__nav--prev" aria-label="Poprzednie zdjęcie"
+                    @onclick="Previous" @onclick:stopPropagation="true">‹</button>
+            <button type="button" class="lightbox__nav lightbox__nav--next" aria-label="Następne zdjęcie"
+                    @onclick="Next" @onclick:stopPropagation="true">›</button>
+        }
+
+        <img class="lightbox__img" src="@_images[_openIndex]" alt="@AltText" @onclick:stopPropagation="true" />
+        <span class="lightbox__counter">@(_openIndex + 1) / @_images.Count</span>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<BlockViewItem> Items { get; set; } = Array.Empty<BlockViewItem>();
+
+    [Parameter]
+    public string? AltText { get; set; } = "Zdjęcie w artykule";
+
+    private List<BlockSegment<BlockViewItem>> Segments = new();
+    private List<string> _images = new();
+    private int _openIndex = -1;
+    private bool _focusOverlay;
+    private ElementReference _overlay;
+
+    protected override void OnParametersSet()
+    {
+        Segments = BlockSegments.Build(Items, b => b.IsImage, b => b.InCollage);
+        _images = Items
+            .Where(b => b.IsImage && !string.IsNullOrEmpty(b.ImageUrl))
+            .Select(b => b.ImageUrl!)
+            .ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Fokus na nakładce, żeby działały klawisze Esc oraz strzałki.
+        if (_focusOverlay && _openIndex >= 0)
+        {
+            _focusOverlay = false;
+            await _overlay.FocusAsync();
+        }
+    }
+
+    private void Open(string? url)
+    {
+        var index = url == null ? -1 : _images.IndexOf(url);
+        if (index < 0)
+        {
+            return;
+        }
+        _openIndex = index;
+        _focusOverlay = true;
+    }
+
+    private void Close() => _openIndex = -1;
+
+    private void Next() => _openIndex = (_openIndex + 1) % _images.Count;
+
+    private void Previous() => _openIndex = (_openIndex - 1 + _images.Count) % _images.Count;
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                Close();
+                break;
+            case "ArrowRight":
+                Next();
+                break;
+            case "ArrowLeft":
+                Previous();
+                break;
+        }
+    }
+}

@@ -1,0 +1,144 @@
+﻿
+
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IAuthService _authService
+@inject IPermissionService _permissionService
+
+<div class="permissions-container">
+    <h3 class="permissions-title">Zarządzanie uprawnieniami</h3>
+
+    <div class="user-select-wrapper">
+        <label for="userSelect" class="form-label">
+            Wybierz użytkownika
+        </label>
+
+        <select id="userSelect"
+                class="form-select"
+                value="@(ExpandedUserId?.ToString() ?? "")"
+                @onchange="OnUserChanged">
+
+            <option value="">-- Wybierz użytkownika --</option>
+
+            @foreach (var user in Users)
+            {
+                <option value="@user.Id">
+                    @user.Name @user.Surname
+                </option>
+            }
+        </select>
+    </div>
+
+    @if (ExpandedUserId.HasValue && Users.Any(u => u.Id == ExpandedUserId.Value))
+    {
+        <div class="permissions-panel">
+            <div class="permissions-panel__header">
+                <h5>Uprawnienia użytkownika</h5>
+                <p>
+                    @Users.First(u => u.Id == ExpandedUserId.Value).Email
+                </p>
+            </div>
+
+            <div class="permissions-list">
+                @foreach (var permission in Enum.GetValues<EnumPermissions>()
+                            .Where(p => p != EnumPermissions.Master))
+                {
+                    <label class="permission-item" @key="permission">
+                        <span>@GetPermissionName(permission)</span>
+
+                        <input class="form-check-input"
+                               type="checkbox"
+                               @bind="SelectedPermissions[permission]" />
+                    </label>
+                }
+            </div>
+
+            <button class="btn btn-success save-permissions-btn"
+                    @onclick="() => SavePermissions(ExpandedUserId.Value)">
+                Zapisz uprawnienia
+            </button>
+        </div>
+    }
+</div>
+
+
+@code {
+    public List<User> Users { get; set; } = new();
+
+    private int? ExpandedUserId { get; set; }
+
+    private Dictionary<EnumPermissions, bool> SelectedPermissions { get; set; }
+    = Enum.GetValues<EnumPermissions>()
+    .Where(p => p != EnumPermissions.Master)
+    .ToDictionary(p => p, p => false);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Users = await _authService.GetAllUsersAsync();
+    }
+
+    private async Task TogglePermissions(int userId)
+    {
+        if (ExpandedUserId == userId)
+        {
+            ExpandedUserId = null;
+            return;
+        }
+
+        var userPermissions = await _permissionService.GetUserPermissionsAsync(userId);
+
+        SelectedPermissions = Enum.GetValues<EnumPermissions>()
+            .Where(p => p != EnumPermissions.Master)
+            .ToDictionary(
+                permission => permission,
+                permission => userPermissions.Contains(permission)
+            );
+        ExpandedUserId = userId;
+
+    }
+
+    private string GetPermissionName(EnumPermissions permission)
+    {
+        return permission switch
+        {
+            EnumPermissions.AddArticle => "Dodawanie artykułów",
+            EnumPermissions.EditArticle => "Edytowanie artykułów",
+            EnumPermissions.DeleteArticle => "Usuwanie artykułów",
+            EnumPermissions.AddUser => "Dodawanie użytkowników",
+            EnumPermissions.ManageUser => "Zarządzanie użytkownikami",
+            EnumPermissions.AddFile => "Dodawanie plików",
+            EnumPermissions.AddSubstituteLesson => "Dodawanie zastępstw",
+            EnumPermissions.ManageClasses => "Zarządzanie klasami",
+            EnumPermissions.ManageTeachers => "Zarządzanie nauczycielami",
+            EnumPermissions.ManageRooms => "Zarządzanie salami",
+            EnumPermissions.ManageSubjects => "Zarządzanie przedmiotami",
+            EnumPermissions.ManageCustomFields => "Pola formularza zastępstw",
+            _ => permission.ToString()
+        };
+    }
+    private async Task OnUserChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int userId))
+        {
+            await TogglePermissions(userId);
+        }
+        else
+        {
+            ExpandedUserId = null;
+        }
+    }
+    private async Task SavePermissions(int userId)
+    {
+        var selected = SelectedPermissions
+            .Where(p => p.Value)
+            .Select(p => p.Key)
+            .ToList();
+
+        var succces = await _permissionService.SavePermissionsAsync(selected, userId);
+        if(succces)
+        {
+        ExpandedUserId = null;
+        }
+    }
+}

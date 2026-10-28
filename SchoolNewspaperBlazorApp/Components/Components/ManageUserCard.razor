@@ -1,0 +1,189 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IAuthService _authService
+@inject IRoleService _roleService
+@inject IPermissionService _permissionService
+@inject IJSRuntime _js
+
+@if (!_allowed)
+{
+    <div class="admin-empty-state">
+        <span class="admin-empty-state__icon">⚠</span>
+        <h3>Brak uprawnień</h3>
+        <p>Nie masz uprawnień do zarządzania użytkownikami.</p>
+    </div>
+}
+else if (_users.Count == 0)
+{
+    <div class="admin-empty-state">
+        <span class="admin-empty-state__icon">♙</span>
+        <h3>Brak użytkowników</h3>
+        <p>W systemie nie ma jeszcze żadnych kont.</p>
+    </div>
+}
+else
+{
+    <div class="manage-users">
+        <table class="manage-users__table">
+            <thead>
+                <tr>
+                    <th>Użytkownik</th>
+                    <th>Stanowisko</th>
+                    <th>Zarejestrowano</th>
+                    <th class="manage-users__actions-col">Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in _users)
+                {
+                    var isSelf = user.Id == _currentUserId;
+                    var isMaster = _masterIds.Contains(user.Id);
+
+                    <tr @key="user.Id">
+                        <td>
+                            <strong>@user.Name @user.Surname</strong>
+                            @if (isSelf)
+                            {
+                                <span class="manage-users__badge">To Ty</span>
+                            }
+                            @if (isMaster)
+                            {
+                                <span class="manage-users__badge manage-users__badge--master">Administrator</span>
+                            }
+                            <div class="manage-users__email">@user.Email</div>
+                        </td>
+
+                        <td>
+                            <select class="form-select form-select-sm"
+                                    @bind="_selectedRoleIds[user.Id]">
+                                @if (user.RoleId == null)
+                                {
+                                    <option value="">Brak stanowiska</option>
+                                }
+                                @foreach (var role in _availableRoles)
+                                {
+                                    <option value="@role.Id">@role.Name</option>
+                                }
+                            </select>
+                        </td>
+
+                        <td class="manage-users__date">
+                            @user.RegisterDate.ToString("dd.MM.yyyy")
+                        </td>
+
+                        <td class="manage-users__actions">
+                            <button type="button"
+                                    class="btn btn-sm btn-primary"
+                                    disabled="@(!IsRoleChanged(user))"
+                                    @onclick="() => SaveRoleAsync(user)">
+                                Zapisz
+                            </button>
+
+                            @if (!isSelf && !isMaster)
+                            {
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => DeleteUserAsync(user)">
+                                    Usuń
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<User> _users = new();
+    private List<Role> _availableRoles = new();
+    private readonly Dictionary<int, int?> _selectedRoleIds = new();
+    private readonly HashSet<int> _masterIds = new();
+    private int _currentUserId;
+    private bool _allowed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allowed = await _permissionService.HasPermissionAsync(EnumPermissions.ManageUser);
+        if (!_allowed)
+        {
+            return;
+        }
+
+        _currentUserId = await _permissionService.GetUserId();
+
+        var currentPermissions = await _permissionService.GetUserPermissionsAsync(_currentUserId);
+        var currentIsMaster = currentPermissions.Contains(EnumPermissions.Master);
+
+        _availableRoles = await _roleService.GetAllRolesAsync();
+
+        var users = await _authService.GetAllUsersAsync();
+        var visibleUsers = new List<User>();
+
+        foreach (var user in users.Where(u => u.Id != _currentUserId))
+        {
+            var permissions = await _permissionService.GetUserPermissionsAsync(user.Id);
+            var isMaster = permissions.Contains(EnumPermissions.Master);
+
+            
+            if (isMaster && !currentIsMaster)
+            {
+                continue;
+            }
+
+            if (isMaster)
+            {
+                _masterIds.Add(user.Id);
+            }
+
+            _selectedRoleIds[user.Id] = user.RoleId;
+            visibleUsers.Add(user);
+        }
+
+        _users = visibleUsers
+            .OrderBy(u => u.Surname)
+            .ThenBy(u => u.Name)
+            .ToList();
+    }
+
+    private bool IsRoleChanged(User user)
+    {
+        return _selectedRoleIds[user.Id] is int selected && selected != user.RoleId;
+    }
+
+    private async Task SaveRoleAsync(User user)
+    {
+        if (_selectedRoleIds[user.Id] is not int newRoleId)
+        {
+            return;
+        }
+
+        var success = await _authService.UpdateUserRoleAsync(user.Id, newRoleId);
+        if (success)
+        {
+            user.RoleId = newRoleId;
+            user.Role = _availableRoles.FirstOrDefault(r => r.Id == newRoleId);
+        }
+    }
+
+    private async Task DeleteUserAsync(User user)
+    {
+        var confirmed = await _js.InvokeAsync<bool>(
+            "confirm",
+            $"Czy na pewno chcesz usunąć użytkownika {user.Name} {user.Surname} ({user.Email})?\n\nTej operacji nie można cofnąć.");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var success = await _authService.DeleteUserAsync(user.Id);
+        if (success)
+        {
+            _users.Remove(user);
+            _selectedRoleIds.Remove(user.Id);
+        }
+    }
+}

@@ -1,0 +1,31 @@
+﻿@* Lista wyboru ze słownika; gdy słownik jest pusty, pozwala wpisać wartość ręcznie. *@
+@if (Items.Count > 0)
+{
+    <select class="form-select mb-3" value="@Value" required="@Required" @onchange="OnChanged">
+        <option value="">@Placeholder</option>
+        @foreach (var item in Items)
+        {
+            <option value="@item">@item</option>
+        }
+    </select>
+}
+else
+{
+    <input type="text" class="form-control mb-3" maxlength="@MaxLength" value="@Value"
+           placeholder="@Placeholder" required="@Required" @onchange="OnChanged" />
+}
+
+@code {
+    [Parameter] public IReadOnlyList<string> Items { get; set; } = Array.Empty<string>();
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Wybierz";
+    [Parameter] public int MaxLength { get; set; } = 100;
+    [Parameter] public bool Required { get; set; }
+
+    private Task OnChanged(ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString();
+        return ValueChanged.InvokeAsync(string.IsNullOrWhiteSpace(text) ? null : text);
+    }
+}
