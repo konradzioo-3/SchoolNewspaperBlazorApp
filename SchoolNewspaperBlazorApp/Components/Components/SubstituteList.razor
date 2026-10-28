@@ -1,0 +1,142 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using System.Globalization
+
+@if (Substitutes.Count == 0)
+{
+    <div class="admin-empty-state">
+        <span class="admin-empty-state__icon">☰</span>
+        <h3>@EmptyText</h3>
+        <p>Gdy tylko pojawią się zastępstwa, zobaczysz je w tym miejscu.</p>
+    </div>
+}
+else
+{
+    @foreach (var group in Substitutes.GroupBy(s => s.SubstituteDate.Date))
+    {
+        <section class="substitute-day" @key="group.Key">
+            <h3 class="substitute-day__title">
+                @FormatDay(group.Key)
+                @if (group.Key == DateTime.Today)
+                {
+                    <span class="substitute-day__badge">Dzisiaj</span>
+                }
+                else if (group.Key == DateTime.Today.AddDays(1))
+                {
+                    <span class="substitute-day__badge">Jutro</span>
+                }
+            </h3>
+
+            <div class="substitute-table-wrap">
+                <table class="substitute-table">
+                    <thead>
+                        <tr>
+                            <th>Lekcja</th>
+                            <th>Klasa</th>
+                            <th>Przedmiot</th>
+                            <th>Nieobecny</th>
+                            <th>Zastępuje</th>
+                            <th>Sala</th>
+                            <th>Uwagi</th>
+                            @foreach (var field in VisibleFields)
+                            {
+                                <th @key="field.Id">@field.Label</th>
+                            }
+                            @if (CanDelete)
+                            {
+                                <th></th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in group)
+                        {
+                            <tr @key="item.Id">
+                                <td data-label="Lekcja">@(item.LessonNumber?.ToString() ?? "—")</td>
+                                <td data-label="Klasa"><strong>@item.ClassName</strong></td>
+                                <td data-label="Przedmiot">@(item.Subject ?? "—")</td>
+                                <td data-label="Nieobecny">@(item.OriginalTeacher?.FullName ?? "—")</td>
+                                <td data-label="Zastępuje"><strong>@(item.SubstituteTeacher?.FullName ?? "—")</strong></td>
+                                <td data-label="Sala">
+                                    @if (!string.IsNullOrWhiteSpace(item.OldRoom) && !string.IsNullOrWhiteSpace(item.Room)
+                                         && item.OldRoom != item.Room)
+                                    {
+                                        <span class="substitute-room-old">@item.OldRoom</span>
+                                        <span>→ @item.Room</span>
+                                    }
+                                    else
+                                    {
+                                        @(item.Room ?? item.OldRoom ?? "—")
+                                    }
+                                </td>
+                                <td data-label="Uwagi">
+                                    @(item.Note ?? "")
+                                    @if (item.OriginalDate.Date != item.SubstituteDate.Date)
+                                    {
+                                        <div class="substitute-moved">
+                                            Przeniesiona z @item.OriginalDate.ToString("dd.MM.yyyy")
+                                        </div>
+                                    }
+                                </td>
+                                @foreach (var field in VisibleFields)
+                                {
+                                    <td data-label="@field.Label" @key="field.Id">@FormatValue(item, field)</td>
+                                }
+                                @if (CanDelete)
+                                {
+                                    <td class="substitute-actions">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => OnDelete.InvokeAsync(item.Id)">
+                                            Usuń
+                                        </button>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public List<SubstituteLessons> Substitutes { get; set; } = new();
+    [Parameter]
+    public bool CanDelete { get; set; }
+    [Parameter]
+    public EventCallback<int> OnDelete { get; set; }
+    [Parameter]
+    public string EmptyText { get; set; } = "Brak zastępstw";
+    // Własne pola formularza; jako kolumny pokazujemy te, które mają ustawione "ShowOnList".
+    [Parameter]
+    public List<CustomField> Fields { get; set; } = new();
+
+    private IEnumerable<CustomField> VisibleFields => Fields.Where(f => f.ShowOnList);
+
+    private static string FormatValue(SubstituteLessons item, CustomField field)
+    {
+        var value = item.FieldValues.FirstOrDefault(v => v.CustomFieldId == field.Id)?.Value;
+        if (string.IsNullOrEmpty(value))
+        {
+            return "—";
+        }
+        return field.FieldType switch
+        {
+            EnumCustomFieldType.Checkbox => value == "true" ? "Tak" : "Nie",
+            EnumCustomFieldType.Date when DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                => date.ToString("dd.MM.yyyy"),
+            _ => value
+        };
+    }
+
+    private static readonly CultureInfo Polish = new("pl-PL");
+
+    private static string FormatDay(DateTime day)
+    {
+        var text = day.ToString("dddd, d MMMM yyyy", Polish);
+        return char.ToUpper(text[0], Polish) + text.Substring(1);
+    }
+}

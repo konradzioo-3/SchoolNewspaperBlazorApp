@@ -1,0 +1,370 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Components.Components
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IArticleService articleService
+@inject IFileService fileService
+@inject INotificationService notificationService
+
+<div class="article-editor">
+    <div class="add-article-form">
+        <h1 class="add-article-form__title">@(IsEdit ? "Edytuj artykuł" : "Dodaj artykuł")</h1>
+
+        <label class="form-label">Zdjęcie główne</label>
+        <InputFile OnChange="ChoosePhoto" accept="image/*" class="form-control mb-3" />
+
+        <form @onsubmit="SubmitForm" @onsubmit:preventDefault>
+            <label class="form-label">Tytuł</label>
+            <input @bind="title" @bind:event="oninput" class="form-control mb-3" placeholder="Wpisz tytuł..." required />
+
+            <label class="form-label">Kategoria</label>
+            <InputSelect @bind-Value="selectedType" class="form-select mb-3" required>
+                <option value="">Wybierz kategorię</option>
+
+                @foreach (var type in Enum.GetValues<EnumArticleType>())
+                {
+                    <option value="@type">@GetTypeName(type)</option>
+                }
+            </InputSelect>
+
+            <label class="form-label">Treść artykułu</label>
+            <p class="block-editor__hint">
+                Pisz i wstawiaj zdjęcia w dowolnej kolejności: tekst nad zdjęciem, pod zdjęciami, między nimi.
+                Użyj <strong>＋ Tekst</strong> lub <strong>＋ Zdjęcie</strong> w miejscu, w którym ma się pojawić nowy fragment.
+                Zdjęcia dodane obok siebie scalają się w jeden kolaż - przełącznik przy zdjęciu pozwala pokazać je osobno.
+            </p>
+
+            <div class="block-editor">
+                @{
+                    var groups = BuildGroups();
+                }
+                @for (var i = 0; i <= _blocks.Count; i++)
+                {
+                    var at = i;
+                    if (at > 0)
+                    {
+                        var index = at - 1;
+                        var block = _blocks[index];
+                        var inGroup = groups.TryGetValue(block.Key, out var grp);
+
+                        if (inGroup && grp.Start)
+                        {
+                            <div class="block-group__head" @key="@($"group-{block.Key}")">
+                                <span class="block-group__icon" aria-hidden="true">▦</span>
+                                Kolaż: @grp.Size @(grp.Size < 5 ? "zdjęcia" : "zdjęć") scalone w jeden obraz dopasowany do szerokości artykułu
+                            </div>
+                        }
+
+                        <div class="block-card @(block.Type == EnumArticleBlockType.Text ? "block-card--text" : "block-card--image") @(inGroup ? "block-card--grouped" : "")" @key="block.Key">
+                            <div class="block-card__bar">
+                                <span class="block-card__label">@(block.Type == EnumArticleBlockType.Text ? "Tekst" : "Zdjęcie")</span>
+                                <div class="block-card__tools">
+                                    <button type="button" class="block-tool" title="Przesuń w górę"
+                                            disabled="@(index == 0)" @onclick="() => MoveBlock(index, -1)">↑</button>
+                                    <button type="button" class="block-tool" title="Przesuń w dół"
+                                            disabled="@(index == _blocks.Count - 1)" @onclick="() => MoveBlock(index, 1)">↓</button>
+                                    <button type="button" class="block-tool block-tool--danger" title="Usuń fragment"
+                                            @onclick="() => RemoveBlock(index)">✕</button>
+                                </div>
+                            </div>
+
+                            @if (block.Type == EnumArticleBlockType.Text)
+                            {
+                                <textarea class="form-control" rows="6" placeholder="Wpisz tekst..."
+                                          @bind="block.Text" @bind:event="oninput"></textarea>
+                            }
+                            else
+                            {
+                                <div class="block-card__image-row">
+                                    <img class="block-card__thumb" src="@block.PreviewUrl" alt="Zdjęcie w artykule" />
+                                    <label class="switch" title="Kolejne zdjęcia z włączonym przełącznikiem łączą się w jeden kolaż">
+                                        <input type="checkbox" class="switch__input" @bind="block.InCollage" />
+                                        <span class="switch__track" aria-hidden="true"></span>
+                                        <span class="switch__text">
+                                            @(block.InCollage ? "Scalone z sąsiednimi zdjęciami" : "Wyświetlane osobno")
+                                        </span>
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="block-insert">
+                        <button type="button" class="block-insert__btn" @onclick="() => AddTextBlock(at)">＋ Tekst</button>
+                        <label class="block-insert__btn">
+                            ＋ Zdjęcie
+                            <InputFile OnChange="e => InsertImagesAsync(at, e)" accept="image/*" multiple class="block-insert__file" />
+                        </label>
+                    </div>
+                }
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">@(IsEdit ? "Zatwierdź edycje" : "Dodaj artykuł")</button>
+        </form>
+    </div>
+
+    <aside class="article-editor__preview">
+        <ArticlePreview Title="@title"
+                        Blocks="_blocks"
+                        CategoryName="@(selectedType.HasValue ? GetTypeName(selectedType.Value) : null)"
+                        MainImageUrl="@previewImage" />
+    </aside>
+</div>
+
+
+@code {
+    [Parameter]
+    public EventCallback ClearView { get; set; }
+    [Parameter]
+    public bool IsEdit { get; set; }
+    [Parameter]
+    public Article? Article { get; set; }
+    private string title = "";
+    private string? previewImage;
+    private EnumArticleType? selectedType;
+    IBrowserFile? file;
+    private List<ArticleBlockDraft> _blocks = new()
+    {
+        new ArticleBlockDraft { Type = EnumArticleBlockType.Text }
+    };
+    private int? loadedArticleId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Wypełniamy formularz tylko raz dla danego artykułu,
+        // żeby odświeżenie rodzica nie nadpisywało tego, co użytkownik już wpisał.
+        if (IsEdit && Article != null && loadedArticleId != Article.Id)
+        {
+            loadedArticleId = Article.Id;
+            title = Article.Title;
+            selectedType = Article.ArticleType;
+
+            var fileName = await fileService.TryGetFileNameByIdAsync(Article.MainImageId);
+            if (!string.IsNullOrWhiteSpace(fileName))
+            {
+                previewImage = $"/Images/{fileName}";
+            }
+            await LoadBlocksAsync(Article);
+        }
+    }
+
+    private async Task LoadBlocksAsync(Article article)
+    {
+        var saved = await articleService.GetBlocksAsync(article.Id);
+        var loaded = new List<ArticleBlockDraft>();
+
+        if (saved.Count > 0)
+        {
+            foreach (var block in saved)
+            {
+                if (block.BlockType == EnumArticleBlockType.Text)
+                {
+                    loaded.Add(new ArticleBlockDraft { Type = EnumArticleBlockType.Text, Text = block.Text });
+                }
+                else if (block.MediaFileId is int mediaId)
+                {
+                    var name = await fileService.TryGetFileNameByIdAsync(mediaId);
+                    if (name != null)
+                    {
+                        loaded.Add(new ArticleBlockDraft
+                        {
+                            Type = EnumArticleBlockType.Image,
+                            MediaFileId = mediaId,
+                            InCollage = block.InCollage,
+                            PreviewUrl = $"/Images/{name}"
+                        });
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Starszy artykuł bez bloków: tekst, a pod nim zdjęcia z galerii.
+            loaded.Add(new ArticleBlockDraft { Type = EnumArticleBlockType.Text, Text = article.Text });
+            foreach (var media in await fileService.GetGalleryFilesAsync(article.Id))
+            {
+                loaded.Add(new ArticleBlockDraft
+                {
+                    Type = EnumArticleBlockType.Image,
+                    MediaFileId = media.Id,
+                    PreviewUrl = $"/Images/{media.FileName}"
+                });
+            }
+        }
+
+        if (loaded.Count == 0)
+        {
+            loaded.Add(new ArticleBlockDraft { Type = EnumArticleBlockType.Text });
+        }
+        _blocks = loaded;
+    }
+
+    private string GetTypeName(EnumArticleType type)
+    {
+        return type switch
+        {
+            EnumArticleType.Announcements => "Ogłoszenia",
+            EnumArticleType.Substitute => "Zastępstwa",
+            EnumArticleType.Events => "Wydarzenia",
+            EnumArticleType.Competitions => "Konkursy",
+            EnumArticleType.Admisions => "Rekrutacja",
+            EnumArticleType.Exams => "Egzaminy",
+            EnumArticleType.StudentsCouncil => "Samorząd",
+            _ => type.ToString()
+        };
+    }
+
+    // Które zdjęcia scalą się w kolaż (ta sama logika co na stronie artykułu i w podglądzie).
+    private Dictionary<Guid, (bool Start, int Size)> BuildGroups()
+    {
+        var map = new Dictionary<Guid, (bool Start, int Size)>();
+        var segments = BlockSegments.Build(_blocks, b => b.Type == EnumArticleBlockType.Image, b => b.InCollage);
+        foreach (var segment in segments)
+        {
+            if (segment.Kind != BlockSegmentKind.Collage)
+            {
+                continue;
+            }
+            for (var i = 0; i < segment.Items.Count; i++)
+            {
+                map[segment.Items[i].Key] = (i == 0, segment.Items.Count);
+            }
+        }
+        return map;
+    }
+
+    // ---------- edycja bloków ----------
+
+    private void AddTextBlock(int at)
+    {
+        _blocks.Insert(at, new ArticleBlockDraft { Type = EnumArticleBlockType.Text });
+    }
+
+    private async Task InsertImagesAsync(int at, InputFileChangeEventArgs e)
+    {
+        var added = new List<ArticleBlockDraft>();
+        foreach (var image in e.GetMultipleFiles(50))
+        {
+            try
+            {
+                added.Add(new ArticleBlockDraft
+                {
+                    Type = EnumArticleBlockType.Image,
+                    File = image,
+                    PreviewUrl = await fileService.GetPreviewAsync(image)
+                });
+            }
+            catch (IOException)
+            {
+                notificationService.Show($"Zdjęcie „{image.Name}” jest za duże (max 5 MB)!", EnumNotificationType.Failure);
+            }
+        }
+        _blocks.InsertRange(Math.Min(at, _blocks.Count), added);
+    }
+
+    private void MoveBlock(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _blocks.Count)
+        {
+            return;
+        }
+        (_blocks[index], _blocks[target]) = (_blocks[target], _blocks[index]);
+    }
+
+    private void RemoveBlock(int index)
+    {
+        _blocks.RemoveAt(index);
+    }
+
+    // ---------- zapis ----------
+
+    private async Task SubmitForm()
+    {
+        // Pełny tekst (karta na stronie głównej, wyszukiwanie) to sklejone bloki tekstowe.
+        var text = string.Join("\n\n", _blocks
+            .Where(b => b.Type == EnumArticleBlockType.Text && !string.IsNullOrWhiteSpace(b.Text))
+            .Select(b => b.Text!.Trim()));
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            notificationService.Show("Treść nie może być pusta!", EnumNotificationType.Failure);
+            return;
+        }
+        if (!IsEdit && file == null)
+        {
+            notificationService.Show("Artykuł musi zawierac zdjecie głowne!", EnumNotificationType.Failure);
+            return;
+        }
+        int mainImageId = 0;
+        if (file != null)
+        {
+            mainImageId = await fileService.UploadImage(file);
+        }
+
+        if (IsEdit && Article != null)
+        {
+            if (await articleService.UpdateArticleByIdAsync(Article.Id, title, text, mainImageId, selectedType))
+            {
+                await SaveBlocksAsync(Article.Id);
+            }
+        }
+        else
+        {
+            var articleId = await articleService.AddArticleAsync(title, text, mainImageId, selectedType);
+            if (articleId != 0)
+            {
+                await SaveBlocksAsync(articleId);
+                title = "";
+                previewImage = "";
+                selectedType = null;
+                file = null;
+                _blocks = new List<ArticleBlockDraft> { new ArticleBlockDraft { Type = EnumArticleBlockType.Text } };
+                await ClearView.InvokeAsync();
+            }
+        }
+    }
+
+    // Wgrywa nowe zdjęcia z edytora i zapisuje bloki w zapamiętanej kolejności.
+    private async Task SaveBlocksAsync(int articleId)
+    {
+        var blocks = new List<ArticleBlock>();
+        foreach (var draft in _blocks)
+        {
+            if (draft.Type == EnumArticleBlockType.Text)
+            {
+                if (!string.IsNullOrWhiteSpace(draft.Text))
+                {
+                    blocks.Add(new ArticleBlock { BlockType = EnumArticleBlockType.Text, Text = draft.Text.Trim() });
+                }
+                continue;
+            }
+
+            var mediaId = draft.MediaFileId;
+            if (draft.File != null)
+            {
+                mediaId = await fileService.UploadImage(draft.File, articleId);
+                draft.MediaFileId = mediaId;
+                draft.File = null;
+            }
+            if (mediaId != null)
+            {
+                blocks.Add(new ArticleBlock { BlockType = EnumArticleBlockType.Image, MediaFileId = mediaId, InCollage = draft.InCollage });
+            }
+        }
+        await articleService.SaveBlocksAsync(articleId, blocks);
+    }
+
+    private async Task ChoosePhoto(InputFileChangeEventArgs e)
+    {
+        file = e.File;
+        try
+        {
+            previewImage = await fileService.GetPreviewAsync(file);
+        }
+        catch (IOException)
+        {
+            file = null;
+            notificationService.Show("Zdjęcie jest za duże (max 5 MB)!", EnumNotificationType.Failure);
+        }
+    }
+}

@@ -1,0 +1,55 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IRoleService _roleService
+
+<div class="role-form">
+    <form @onsubmit="AddRoleAsync" @onsubmit:preventDefault class="role-form__row">
+        <input type="text"
+               class="form-control"
+               maxlength="100"
+               placeholder="Nazwa nowej roli, np. Redaktor naczelny"
+               @bind="_newRoleName"
+               @bind:event="oninput"
+               required />
+        <button type="submit" class="btn btn-primary">Dodaj rolę</button>
+    </form>
+
+    <h3 class="role-form__subtitle">Istniejące role</h3>
+    @if (_roles.Count == 0)
+    {
+        <p class="role-form__empty">Nie dodano jeszcze żadnych ról.</p>
+    }
+    else
+    {
+        <ul class="role-form__list">
+            @foreach (var role in _roles)
+            {
+                <li class="role-form__chip">@role.Name</li>
+            }
+        </ul>
+    }
+
+    <p class="role-form__hint">
+        Role można tylko dodawać. Edycja i usuwanie ról jest możliwe wyłącznie w bazie danych (SQL).
+    </p>
+</div>
+
+@code {
+    private List<Role> _roles = new();
+    private string _newRoleName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _roles = await _roleService.GetAllRolesAsync();
+    }
+
+    private async Task AddRoleAsync()
+    {
+        var success = await _roleService.AddRoleAsync(_newRoleName);
+        if (success)
+        {
+            _newRoleName = string.Empty;
+            _roles = await _roleService.GetAllRolesAsync();
+        }
+    }
+}

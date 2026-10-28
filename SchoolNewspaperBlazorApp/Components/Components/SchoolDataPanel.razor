@@ -1,0 +1,231 @@
+﻿@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject ISchoolDictionaryService _dictionaryService
+@inject ITeacherService _teacherService
+@inject IPermissionService _permissionService
+@inject IJSRuntime _js
+
+<div class="school-data">
+    @if (_tabs.Count == 0)
+    {
+        <div class="admin-empty-state">
+            <span class="admin-empty-state__icon">⚠</span>
+            <h3>Brak uprawnień</h3>
+            <p>Nie masz uprawnień do zarządzania danymi szkoły.</p>
+        </div>
+    }
+    else
+    {
+        <div class="school-data__tabs" role="tablist" aria-label="Dane szkolne">
+            @foreach (var tab in _tabs)
+            {
+                <button type="button"
+                        role="tab"
+                        aria-selected="@(tab == _active ? "true" : "false")"
+                        class="school-data__tab @(tab == _active ? "is-active" : "")"
+                        @onclick="() => SelectTab(tab)">
+                    @TabName(tab)
+                    <span class="school-data__count">@CountOf(tab)</span>
+                </button>
+            }
+        </div>
+
+        @if (_active == Tab.Teachers)
+        {
+            <form @onsubmit="AddTeacherAsync" @onsubmit:preventDefault class="school-data__form">
+                <input type="text" class="form-control" maxlength="100" placeholder="Imię"
+                       @bind="_teacherName" @bind:event="oninput" required />
+                <input type="text" class="form-control" maxlength="100" placeholder="Nazwisko"
+                       @bind="_teacherSurname" @bind:event="oninput" required />
+                <button type="submit" class="btn btn-primary">Dodaj nauczyciela</button>
+            </form>
+
+            @if (_teachers.Count == 0)
+            {
+                <p class="role-form__empty">Nie dodano jeszcze żadnych nauczycieli.</p>
+            }
+            else
+            {
+                <div class="substitute-table-wrap">
+                    <table class="substitute-table">
+                        <thead>
+                            <tr><th>Nazwisko</th><th>Imię</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var teacher in _teachers)
+                            {
+                                <tr @key="teacher.Id">
+                                    <td><strong>@teacher.Surname</strong></td>
+                                    <td>@teacher.Name</td>
+                                    <td class="substitute-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => RemoveTeacherAsync(teacher)">Usuń</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+        else
+        {
+            var items = ItemsOf(_active);
+            <form @onsubmit="AddItemAsync" @onsubmit:preventDefault class="school-data__form">
+                <input type="text" class="form-control" maxlength="@(_active == Tab.Subjects ? 100 : 50)"
+                       placeholder="@Placeholder(_active)" @bind="_newName" @bind:event="oninput" required />
+                <button type="submit" class="btn btn-primary">Dodaj</button>
+            </form>
+
+            @if (items.Count == 0)
+            {
+                <p class="role-form__empty">Nic tu jeszcze nie ma. Dodaj pierwszy wpis.</p>
+            }
+            else
+            {
+                <div class="substitute-table-wrap">
+                    <table class="substitute-table">
+                        <thead>
+                            <tr><th>Nazwa</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in items)
+                            {
+                                <tr @key="item.Id">
+                                    <td><strong>@item.Name</strong></td>
+                                    <td class="substitute-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => RemoveItemAsync(item)">Usuń</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+
+        <p class="role-form__hint">
+            Usunięty wpis znika z list wyboru, ale zostaje w starych zastępstwach.
+        </p>
+    }
+</div>
+
+@code {
+    private enum Tab { Classes, Teachers, Rooms, Subjects }
+
+    private List<Tab> _tabs = new();
+    private Tab _active;
+    private List<DictionaryItem> _classes = new();
+    private List<DictionaryItem> _rooms = new();
+    private List<DictionaryItem> _subjects = new();
+    private List<Teacher> _teachers = new();
+    private string _newName = string.Empty;
+    private string _teacherName = string.Empty;
+    private string _teacherSurname = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await _permissionService.GetAllPermissionsAsync();
+        bool Has(EnumPermissions p) => permissions.GetValueOrDefault(p) || permissions.GetValueOrDefault(EnumPermissions.Master);
+
+        if (Has(EnumPermissions.ManageClasses)) _tabs.Add(Tab.Classes);
+        if (Has(EnumPermissions.ManageTeachers)) _tabs.Add(Tab.Teachers);
+        if (Has(EnumPermissions.ManageRooms)) _tabs.Add(Tab.Rooms);
+        if (Has(EnumPermissions.ManageSubjects)) _tabs.Add(Tab.Subjects);
+        if (_tabs.Count > 0)
+        {
+            _active = _tabs[0];
+            await ReloadAsync();
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (_tabs.Contains(Tab.Classes)) _classes = await _dictionaryService.GetAllAsync(EnumDictionaryKind.Class);
+        if (_tabs.Contains(Tab.Rooms)) _rooms = await _dictionaryService.GetAllAsync(EnumDictionaryKind.Room);
+        if (_tabs.Contains(Tab.Subjects)) _subjects = await _dictionaryService.GetAllAsync(EnumDictionaryKind.Subject);
+        if (_tabs.Contains(Tab.Teachers)) _teachers = await _teacherService.GetAllTeachersAsync();
+    }
+
+    private void SelectTab(Tab tab)
+    {
+        _active = tab;
+        _newName = string.Empty;
+    }
+
+    private static string TabName(Tab tab) => tab switch
+    {
+        Tab.Classes => "Klasy",
+        Tab.Teachers => "Nauczyciele",
+        Tab.Rooms => "Sale",
+        _ => "Przedmioty"
+    };
+
+    private static string Placeholder(Tab tab) => tab switch
+    {
+        Tab.Classes => "Nowa klasa, np. 3TI",
+        Tab.Rooms => "Nowa sala, np. 12 lub Sala gimnastyczna",
+        _ => "Nowy przedmiot, np. Matematyka"
+    };
+
+    private int CountOf(Tab tab) => tab == Tab.Teachers ? _teachers.Count : ItemsOf(tab).Count;
+
+    private List<DictionaryItem> ItemsOf(Tab tab) => tab switch
+    {
+        Tab.Classes => _classes,
+        Tab.Rooms => _rooms,
+        _ => _subjects
+    };
+
+    private static EnumDictionaryKind KindOf(Tab tab) => tab switch
+    {
+        Tab.Classes => EnumDictionaryKind.Class,
+        Tab.Rooms => EnumDictionaryKind.Room,
+        _ => EnumDictionaryKind.Subject
+    };
+
+    private async Task AddItemAsync()
+    {
+        if (await _dictionaryService.AddAsync(KindOf(_active), _newName))
+        {
+            _newName = string.Empty;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveItemAsync(DictionaryItem item)
+    {
+        if (!await _js.InvokeAsync<bool>("confirm", $"Czy na pewno usunąć „{item.Name}”?"))
+        {
+            return;
+        }
+        if (await _dictionaryService.RemoveAsync(KindOf(_active), item.Id))
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private async Task AddTeacherAsync()
+    {
+        if (await _teacherService.AddTeacherAsync(_teacherName, _teacherSurname) != null)
+        {
+            _teacherName = string.Empty;
+            _teacherSurname = string.Empty;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task RemoveTeacherAsync(Teacher teacher)
+    {
+        if (!await _js.InvokeAsync<bool>("confirm", $"Czy na pewno usunąć nauczyciela {teacher.FullName}?"))
+        {
+            return;
+        }
+        if (await _teacherService.RemoveTeacherAsync(teacher.Id))
+        {
+            await ReloadAsync();
+        }
+    }
+}

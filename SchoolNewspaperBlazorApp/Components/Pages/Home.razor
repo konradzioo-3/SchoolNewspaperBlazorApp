@@ -1,0 +1,85 @@
+﻿@page "/"
+@using SchoolNewspaperBlazorApp.Components.Components
+@using SchoolNewspaperBlazorApp.Data
+@using SchoolNewspaperBlazorApp.Data.Enums
+@using SchoolNewspaperBlazorApp.Interfaces.Service
+@inject IArticleService articleService;
+@inject ISubstituteService substituteService;
+@inject ICustomFieldService customFieldService;
+
+<PageTitle>Gazetka ETI</PageTitle>
+
+<section class="home-hero">
+    <span class="home-hero__eyebrow">Gazetka szkolna ETI</span>
+    <h1>Wszystko, co dzieje się w naszej szkole</h1>
+    <p>Aktualności, wydarzenia, konkursy i zastępstwa w jednym miejscu. Wybierz kategorię i bądź na bieżąco.</p>
+
+    <div class="filter-bar" role="group" aria-label="Kategorie artykułów">
+        <button type="button" class="filter-chip @Active("latest")" @onclick="GetLatestArticle">Najnowsze</button>
+        <button type="button" class="filter-chip @Active("Announcements")" @onclick="() => GetCategoryArticle(EnumArticleType.Announcements)">Ogłoszenia</button>
+        <button type="button" class="filter-chip @Active("substitutes")" @onclick="ShowSubstitutes">Zastępstwa</button>
+        <button type="button" class="filter-chip @Active("Events")" @onclick="() => GetCategoryArticle(EnumArticleType.Events)">Wydarzenia</button>
+        <button type="button" class="filter-chip @Active("Competitions")" @onclick="() => GetCategoryArticle(EnumArticleType.Competitions)">Konkursy</button>
+        <button type="button" class="filter-chip @Active("Admisions")" @onclick="() => GetCategoryArticle(EnumArticleType.Admisions)">Rekrutacja</button>
+        <button type="button" class="filter-chip @Active("Exams")" @onclick="() => GetCategoryArticle(EnumArticleType.Exams)">Egzaminy</button>
+        <button type="button" class="filter-chip @Active("StudentsCouncil")" @onclick="() => GetCategoryArticle(EnumArticleType.StudentsCouncil)">Samorząd</button>
+    </div>
+</section>
+
+@if (showSubstitutes)
+{
+    <div class="section-heading" id="aktualnosci">
+        <div>
+            <h2>Zastępstwa</h2>
+            <p>Aktualne i nadchodzące zastępstwa za nieobecnych nauczycieli.</p>
+        </div>
+    </div>
+
+    <SubstituteList Substitutes="substitutes" Fields="customFields" EmptyText="Brak zaplanowanych zastępstw" />
+}
+else
+{
+    <div class="section-heading" id="aktualnosci">
+        <div>
+            <h2>Najnowsze artykuły</h2>
+            <p>Świeże wiadomości od redakcji gazetki.</p>
+        </div>
+    </div>
+
+    <ArticleCard Articles="articles" permissions="false" />
+}
+
+
+@code 
+{
+    public List<Article> articles = new List<Article>();
+    public List<SubstituteLessons> substitutes = new List<SubstituteLessons>();
+    public List<CustomField> customFields = new List<CustomField>();
+    private bool showSubstitutes;
+    private string activeFilter = "latest";
+    private string Active(string key) => activeFilter == key ? "is-active" : "";
+    protected override async Task OnInitializedAsync()
+    {
+        articles = await articleService.GetLatestArticlesAsync();
+    }
+    public async Task GetLatestArticle()
+    {
+        showSubstitutes = false;
+        activeFilter = "latest";
+        articles = await articleService.GetLatestArticlesAsync();
+    }
+    public async Task GetCategoryArticle(EnumArticleType type)
+    {
+        showSubstitutes = false;
+        activeFilter = type.ToString();
+        articles.Clear();
+        articles = await articleService.GetAllArticleByTypeAsync(type);
+    }
+    public async Task ShowSubstitutes()
+    {
+        substitutes = await substituteService.GetUpcomingSubstitutesAsync();
+        customFields = await customFieldService.GetActiveAsync();
+        showSubstitutes = true;
+        activeFilter = "substitutes";
+    }
+}
